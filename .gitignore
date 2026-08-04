@@ -1,0 +1,45 @@
+# Environments
+.env
+.env.local
+
+# Databases and Dumps
+*.sql
+*.tar.gz
+*.zip
+data/
+db/
+
+# Executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Go
+/bin/
+/obj/
+
+# Project specific
+osrm/
+.agent/
+.github/
+.roomodes

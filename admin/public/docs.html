@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Express - Trung tâm Hỗ trợ & Tài liệu</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#0ea5e9',
+                        secondary: '#0284c7',
+                        dark: '#0f172a'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        .nav-link.active {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            font-weight: 600;
+            border-right: 3px solid #0ea5e9;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-package text-primary text-3xl"></i>
+                    <h1 class="text-2xl font-bold text-dark">Ocean Express <span class="text-sm font-medium text-gray-500 ml-2">Docs</span></h1>
+                </div>
+                <div>
+                    <a href="/" class="text-sm font-medium text-primary hover:text-secondary transition flex items-center gap-1">
+                        Về trang Quản trị <i class="ph ph-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 hidden lg:block flex-shrink-0">
+            <div class="sticky top-24 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-3">Danh mục</h3>
+                <nav class="space-y-1">
+                    <a href="#shop" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition active">Dành cho Chủ Shop</a>
+                    <a href="#hub" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Dành cho Nhân viên Kho</a>
+                    <a href="#driver" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Dành cho Tài xế</a>
+                    <a href="#admin" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Dành cho Quản trị viên</a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 max-w-4xl bg-white rounded-xl shadow-sm border border-gray-100 p-8 lg:p-12">
+            
+            <div class="mb-12 border-b border-gray-100 pb-8">
+                <h2 class="text-4xl font-bold text-dark mb-4">Hướng dẫn sử dụng hệ thống</h2>
+                <p class="text-lg text-gray-600">
+                    Tài liệu này cung cấp hướng dẫn chi tiết từng bước để sử dụng nền tảng Logistics Ocean Express dành cho mọi đối tượng.
+                </p>
+            </div>
+
+            <!-- SECTION: SHOP -->
+            <section id="shop" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                        <i class="ph ph-storefront text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-dark">1. Dành cho Khách Hàng (Chủ Shop)</h3>
+                </div>
+                <div class="prose max-w-none text-gray-600 space-y-4">
+                    <p>Với vai trò là Chủ Shop, bạn có thể tự tạo vận đơn, theo dõi lộ trình giao hàng và quản lý doanh thu đối soát (COD).</p>
+                    
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 my-4 flex gap-3">
+                        <i class="ph-fill ph-info text-blue-500 text-xl flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="font-medium text-blue-900 m-0">Mẹo nhỏ</p>
+                            <p class="text-blue-800 text-sm m-0">Truy cập Cổng quản lý dành cho Shop tại tên miền chính của hệ thống. Đăng nhập bằng số điện thoại và mật khẩu được cấp.</p>
+                        </div>
+                    </div>
+
+                    <h4 class="text-lg font-semibold text-gray-900 mt-6">Cách tạo Vận đơn (Shipping Order)</h4>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li>Đăng nhập vào hệ thống bằng tài khoản của Shop.</li>
+                        <li>Tại thanh Menu bên trái, chọn mục <strong>Quản lý Đơn hàng (Orders)</strong>.</li>
+                        <li>Bấm nút <strong>Tạo Đơn Hàng Mới (+)</strong> ở góc trên bên phải.</li>
+                        <li>Điền đầy đủ thông tin Người nhận (Tên, SĐT, Địa chỉ chi tiết), Khối lượng (gram) và Tiền thu hộ COD.</li>
+                        <li>Hệ thống sẽ <strong>tự động tính toán</strong> phí vận chuyển. Nhấn <strong>Lưu</strong> để hoàn tất.</li>
+                    </ul>
+
+                    <h4 class="text-lg font-semibold text-gray-900 mt-6">Theo dõi Lộ trình và Đối soát</h4>
+                    <p>Mã vận đơn (Tracking Number) sẽ được cấp ngay sau khi tạo đơn. Khi đơn hàng giao thành công, tiền thu hộ COD (sau khi trừ cước phí) sẽ tự động cộng vào <strong>Số dư Ví</strong> của Shop. Bạn có thể theo dõi biến động tại mục <strong>Ví & Đối soát (Settlements)</strong>.</p>
+                </div>
+            </section>
+
+            <!-- SECTION: HUB STAFF -->
+            <section id="hub" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <i class="ph ph-warehouse text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-dark">2. Dành cho Nhân viên Kho (Hub Staff)</h3>
+                </div>
+                <div class="prose max-w-none text-gray-600 space-y-4">
+                    <p>Nhân viên kho đóng vai trò là trạm kiểm soát trung chuyển, thực hiện quét mã vạch để ghi nhận hàng vào/ra khỏi kho.</p>
+                    
+                    <div class="bg-amber-50 border border-amber-100 rounded-lg p-4 my-4 flex gap-3">
+                        <i class="ph-fill ph-warning text-amber-500 text-xl flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="font-medium text-amber-900 m-0">Lưu ý Quan trọng</p>
+                            <p class="text-amber-800 text-sm m-0">Chỉ thực hiện quét Inbound/Outbound đối với các đơn hàng <strong>vật lý</strong> đang cầm trên tay tại kho của bạn.</p>
+                        </div>
+                    </div>
+
+                    <h4 class="text-lg font-semibold text-gray-900 mt-6">Quy trình Nhập kho (Inbound)</h4>
+                    <ul class="list-decimal pl-5 space-y-2">
+                        <li>Khi Tài xế mang hàng về kho, nhân viên kho mở tính năng <strong>Quét mã vạch</strong>.</li>
+                        <li>Dùng máy quét (barcode scanner) hoặc nhập tay Tracking Number.</li>
+                        <li>Bấm xác nhận <strong>Inbound</strong>. Trạng thái đơn sẽ cập nhật thành `Đã nhập kho`.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- SECTION: DRIVER -->
+            <section id="driver" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
+                        <i class="ph ph-moped text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-dark">3. Dành cho Tài xế (Shipper)</h3>
+                </div>
+                <div class="prose max-w-none text-gray-600 space-y-4">
+                    <p>Tài xế (bao gồm lấy hàng và giao hàng) sử dụng ứng dụng để cập nhật trạng thái lộ trình thực tế của gói hàng.</p>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 mt-6">
+                        <div class="border border-gray-200 rounded-xl p-5 bg-gray-50">
+                            <h4 class="text-md font-bold text-gray-900 mb-2 flex items-center gap-2"><i class="ph-fill ph-package"></i> Lấy hàng (First-mile)</h4>
+                            <p class="text-sm text-gray-600">Đến Shop theo định vị GPS. Nhận hàng vật lý từ Shop và cập nhật trạng thái thành <strong>Đã lấy hàng (Picked Up)</strong>. Sau đó chở hàng về Kho tổng.</p>
+                        </div>
+                        <div class="border border-gray-200 rounded-xl p-5 bg-gray-50">
+                            <h4 class="text-md font-bold text-gray-900 mb-2 flex items-center gap-2"><i class="ph-fill ph-map-pin"></i> Giao hàng (Last-mile)</h4>
+                            <p class="text-sm text-gray-600">Nhận hàng xuất kho. Chạy xe đến địa chỉ người nhận. Giao thành công thu tiền COD và cập nhật trạng thái <strong>Giao thành công (Delivered)</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: ADMIN -->
+            <section id="admin" class="mb-8 scroll-mt-24">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+                        <i class="ph ph-shield-check text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-dark">4. Dành cho Quản trị viên (Super Admin)</h3>
+                </div>
+                <div class="prose max-w-none text-gray-600 space-y-4">
+                    <p>Admin có toàn quyền quản lý bảng giá, mạng lưới bưu cục và kiểm duyệt đối tác kinh doanh.</p>
+                    
+                    <h4 class="text-lg font-semibold text-gray-900 mt-6">Cấu hình Cước phí (Shipping Rates)</h4>
+                    <p>Truy cập mục <strong>Bảng Giá</strong> để thiết lập cước phí vận chuyển. Bạn có thể định cấu hình phí gửi từ khu vực A sang khu vực B, quy định mức giá cho 1000g đầu tiên và bước giá phụ thu.</p>
+
+                    <h4 class="text-lg font-semibold text-gray-900 mt-6">Quản lý Mạng lưới</h4>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Tạo Kho (Hub):</strong> Định vị chính xác các bưu cục trên bản đồ số để hệ thống điều hướng đơn hàng tự động.</li>
+                        <li><strong>Duyệt Shop:</strong> Kích hoạt tài khoản cho các Đối tác kinh doanh đăng ký tham gia mạng lưới.</li>
+                        <li><strong>Nhân sự:</strong> Phân quyền tài khoản (Tài xế / Thủ kho) trực thuộc các bưu cục cụ thể.</li>
+                    </ul>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <footer class="bg-dark text-gray-400 py-8 border-t border-slate-800 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
+            <p>&copy; 2026 Ocean Express Logistics. Nền tảng Bản quyền.</p>
+            <p class="mt-2 text-gray-500">Tài liệu được thiết kế chuyên nghiệp bởi Hệ thống hỗ trợ tích hợp.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Simple scrollspy for sidebar
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

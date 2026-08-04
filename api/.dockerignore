@@ -1,0 +1,14 @@
+# Binary build sẵn trên host (build lại trong container, không copy vào)
+server.exe
+main
+*.exe
+
+# Script test thủ công / dữ liệu seed lớn — không cần trong image runtime
+test_*.sh
+test/
+data/*.json
+data/*.sql
+
+# Vặt
+*.log
+.git

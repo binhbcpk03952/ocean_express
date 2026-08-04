@@ -1,0 +1,14 @@
+# node_modules được cài lại trong container (npm install ở Dockerfile) —
+# KHÔNG copy từ host. Vừa thừa, vừa gây lỗi xattr khi build context nằm trên
+# mount WSL (/mnt/d). Đây là nguyên nhân "failed to xattr .../node_modules".
+node_modules
+
+# Output build (sinh trong container)
+dist
+
+# Không cần cho build image
+.vscode
+.git
+*.log
+npm-debug.log*
+.DS_Store

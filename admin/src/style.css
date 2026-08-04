@@ -1,0 +1,138 @@
+@import "tailwindcss";
+/* Bộ design token (brand + light/dark) tách riêng. @import phải đứng trước mọi
+   rule khác nên đặt ngay sau tailwindcss, trước @custom-variant. */
+@import "./theme.css";
+
+/* ==========================================================================
+   OCEAN EXPRESS — Design System v1
+   Token-driven, light + dark. Tailwind v4.
+
+   ĐỔI MÀU CHỦ ĐẠO: sửa khối BRAND trong ./theme.css (không sửa file này).
+   File này chỉ giữ: map token → Tailwind, base styles, motion helpers.
+   ========================================================================== */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --------------------------------------------------------------------------
+   Map tokens → Tailwind theme (so `bg-surface`, `text-meta`... work)
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-navy-950: var(--navy-950);
+  --color-navy-900: var(--navy-900);
+  --color-navy-800: var(--navy-800);
+  --color-navy-700: var(--navy-700);
+  --color-navy-600: var(--navy-600);
+
+  --color-teal-700: var(--teal-700);
+  --color-teal-600: var(--teal-600);
+  --color-teal-500: var(--teal-500);
+  --color-teal-400: var(--teal-400);
+  --color-teal-50:  var(--teal-50);
+
+  --color-base:     var(--bg-base);
+  --color-surface:  var(--bg-surface);
+  --color-subtle:   var(--bg-subtle);
+  --color-hair:     var(--border);
+  --color-hair-strong: var(--border-strong);
+
+  --color-strong:   var(--text-strong);
+  --color-body:     var(--text-body);
+  --color-meta:     var(--text-meta);
+
+  --color-primary:       var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-ring:  var(--primary-ring);
+  --color-primary-soft:  var(--primary-soft);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger:  var(--danger);
+  --color-info:    var(--info);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+
+  --shadow-e1: var(--e1);
+  --shadow-e2: var(--e2);
+  --shadow-e3: var(--e3);
+
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+
+/* --------------------------------------------------------------------------
+   3. Base
+   -------------------------------------------------------------------------- */
+* {
+  border-color: var(--border);
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* Tabular numbers for data tables / money */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom scrollbar (subtle) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid var(--bg-base);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-meta); }
+
+/* --------------------------------------------------------------------------
+   4. Motion helpers
+   -------------------------------------------------------------------------- */
+@keyframes oe-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes oe-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes oe-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.animate-fade-in  { animation: oe-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.animate-scale-in { animation: oe-scale-in 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--bg-subtle) 25%,
+    var(--border) 37%,
+    var(--bg-subtle) 63%);
+  background-size: 800px 100%;
+  animation: oe-shimmer 1.4s infinite linear;
+  border-radius: var(--r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

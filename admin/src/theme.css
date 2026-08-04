@@ -1,0 +1,184 @@
+/* ==========================================================================
+   OCEAN EXPRESS — THEME / DESIGN TOKENS
+   ==========================================================================
+   File thiết kế riêng, token-driven, hỗ trợ light + dark (Tailwind v4).
+
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │  ĐỔI MÀU CHỦ ĐẠO: chỉ cần sửa KHỐI "BRAND" ngay bên dưới.             │
+   │  Toàn bộ button, link, focus ring, sidebar, gradient logo... đều      │
+   │  tham chiếu về các biến này nên đổi một chỗ là đổi cả hệ thống.       │
+   │                                                                       │
+   │  Cách nhanh: thay 5 sắc độ --brand-* (đậm→nhạt) bằng thang màu mới,   │
+   │  và --sidebar-* nếu muốn đổi nền sidebar. Xem PRESET mẫu ở cuối file. │
+   └─────────────────────────────────────────────────────────────────────┘
+   -------------------------------------------------------------------------- */
+
+:root {
+  /* ======================= BRAND — ĐỔI Ở ĐÂY ============================ */
+
+  /* Màu hành động chủ đạo (primary): button, link, focus, active.
+     Thang 5 sắc độ đậm → nhạt. Hiện tại: Teal. */
+  --brand-700: #0e7490;   /* đậm nhất  — dùng khi active/pressed */
+  --brand-600: #0891b2;   /* hover primary */
+  --brand-500: #06b6d4;   /* ★ primary mặc định */
+  --brand-400: #22d3ee;   /* focus ring / accent sáng */
+  --brand-50:  #ecfeff;   /* nền nhạt: hover row, tag mềm */
+
+  /* Nền sidebar (thang navy đậm). Đổi nếu muốn sidebar tông khác. */
+  --sidebar-900: #0b2a4a; /* nền sidebar chính */
+  --sidebar-950: #06182e; /* nền brand header (đậm hơn) */
+  --sidebar-700: #1b4b78; /* avatar / khối phụ trên nền tối */
+
+  /* Gradient thương hiệu (logo mark, điểm nhấn). 2 mốc màu. */
+  --brand-gradient-from: #0ea5e9;
+  --brand-gradient-to:   #06b6d4;
+
+  /* ===================== HẾT KHỐI BRAND ================================= */
+
+
+  /* --- Alias giữ tương thích tên cũ (navy + teal). KHÔNG cần đổi. ------- */
+  --navy-950: var(--sidebar-950);
+  --navy-900: var(--sidebar-900);
+  --navy-800: #12395f;
+  --navy-700: var(--sidebar-700);
+  --navy-600: #275f92;
+
+  --teal-700: var(--brand-700);
+  --teal-600: var(--brand-600);
+  --teal-500: var(--brand-500);
+  --teal-400: var(--brand-400);
+  --teal-50:  var(--brand-50);
+
+  /* Gradient dựng sẵn — layout dùng var này thay vì hardcode mã màu. */
+  --brand-gradient: linear-gradient(135deg, var(--brand-gradient-from), var(--brand-gradient-to));
+
+  /* --- Surfaces / neutrals — LIGHT ------------------------------------- */
+  --bg-base:      #f1f5f9;
+  --bg-surface:   #ffffff;
+  --bg-subtle:    #f8fafc;
+  --border:       #e2e8f0;
+  --border-strong:#cbd5e1;
+  --text-strong:  #0f172a;
+  --text-body:    #334155;
+  --text-meta:    #64748b;
+
+  /* --- Primary (semantic alias, trỏ về brand) -------------------------- */
+  --primary:       var(--brand-500);
+  --primary-hover: var(--brand-600);
+  --primary-ring:  var(--brand-400);
+  --primary-soft:  var(--brand-50);
+  --on-primary:    #ffffff;
+
+  /* --- Sidebar (trỏ về brand/sidebar scale) ---------------------------- */
+  --sidebar-bg:          var(--sidebar-900);
+  --sidebar-bg-deep:     var(--sidebar-950);
+  --sidebar-text:        #a9c2dd;
+  --sidebar-text-strong: #ffffff;
+  --sidebar-active-bg:   color-mix(in srgb, var(--brand-500) 15%, transparent);
+
+  /* --- Feedback (toast/alert — độc lập với brand) ---------------------- */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger:  #ef4444;
+  --info:    var(--brand-500);
+
+  /* --- Status lifecycle — 8 trạng thái đơn (KHÔNG đổi theo brand) ------
+     Đây là màu ngữ nghĩa gắn với vòng đời đơn hàng, cần giữ ổn định để
+     người dùng nhận diện trạng thái nhất quán. */
+  --st-ready-fg: #b45309; --st-ready-bg: #fef3c7;
+  --st-picked-fg: #1d4ed8; --st-picked-bg: #dbeafe;
+  --st-inbound-fg: #4338ca; --st-inbound-bg: #e0e7ff;
+  --st-transit-fg: #0e7490; --st-transit-bg: #cffafe;
+  --st-outbound-fg: #6d28d9; --st-outbound-bg: #ede9fe;
+  --st-delivering-fg: #c2410c; --st-delivering-bg: #ffedd5;
+  --st-delivered-fg: #047857; --st-delivered-bg: #d1fae5;
+  --st-returned-fg: #b91c1c; --st-returned-bg: #fee2e2;
+
+  /* --- Elevation ------------------------------------------------------- */
+  --e1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --e2: 0 4px 12px rgba(15, 23, 42, 0.10);
+  --e3: 0 20px 40px rgba(15, 23, 42, 0.18);
+
+  /* --- Radius ---------------------------------------------------------- */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   DARK MODE — chỉ override những gì đổi theo nền tối.
+   Brand scale kế thừa từ :root nên đổi màu chủ đạo ở trên là đủ cho cả 2 theme.
+   -------------------------------------------------------------------------- */
+.dark {
+  --bg-base:      #0b1220;
+  --bg-surface:   #111a2e;
+  --bg-subtle:    #0f1729;
+  --border:       #1e2a44;
+  --border-strong:#2e3d5c;
+  --text-strong:  #f1f5f9;
+  --text-body:    #cbd5e1;
+  --text-meta:    #7c8ba5;
+
+  --sidebar-bg:        #0a1a30;
+  --sidebar-bg-deep:   #06121f;
+  --sidebar-text:      #8ba6c4;
+  --sidebar-active-bg: color-mix(in srgb, var(--brand-500) 18%, transparent);
+
+  /* Status soft bg — dark (translucent) */
+  --st-ready-bg: rgba(120, 53, 15, 0.30);
+  --st-picked-bg: rgba(30, 58, 138, 0.30);
+  --st-inbound-bg: rgba(49, 46, 129, 0.30);
+  --st-transit-bg: rgba(22, 78, 99, 0.35);
+  --st-outbound-bg: rgba(76, 29, 149, 0.30);
+  --st-delivering-bg: rgba(124, 45, 18, 0.30);
+  --st-delivered-bg: rgba(6, 78, 59, 0.35);
+  --st-returned-bg: rgba(127, 29, 29, 0.30);
+  /* brighten status text in dark */
+  --st-ready-fg: #fcd34d;
+  --st-picked-fg: #93c5fd;
+  --st-inbound-fg: #a5b4fc;
+  --st-transit-fg: #67e8f9;
+  --st-outbound-fg: #c4b5fd;
+  --st-delivering-fg: #fdba74;
+  --st-delivered-fg: #6ee7b7;
+  --st-returned-fg: #fca5a5;
+
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --e2: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --e3: 0 20px 40px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   PRESET MẪU — bỏ comment 1 khối để đổi nhanh sang bộ màu khác.
+   Dán đè lên KHỐI BRAND ở trên (giữ nguyên tên biến).
+   ==========================================================================
+
+   -- Indigo / Violet (tím) --
+   --brand-700:#4338ca; --brand-600:#4f46e5; --brand-500:#6366f1;
+   --brand-400:#818cf8; --brand-50:#eef2ff;
+   --sidebar-900:#1e1b4b; --sidebar-950:#130f38; --sidebar-700:#4338ca;
+   --brand-gradient-from:#6366f1; --brand-gradient-to:#8b5cf6;
+
+   -- Emerald (xanh lá) --
+   --brand-700:#047857; --brand-600:#059669; --brand-500:#10b981;
+   --brand-400:#34d399; --brand-50:#ecfdf5;
+   --sidebar-900:#064e3b; --sidebar-950:#022c22; --sidebar-700:#047857;
+   --brand-gradient-from:#10b981; --brand-gradient-to:#14b8a6;
+
+   -- Rose / Crimson (đỏ hồng) --
+   --brand-700:#be123c; --brand-600:#e11d48; --brand-500:#f43f5e;
+   --brand-400:#fb7185; --brand-50:#fff1f2;
+   --sidebar-900:#4c0519; --sidebar-950:#310310; --sidebar-700:#9f1239;
+   --brand-gradient-from:#f43f5e; --brand-gradient-to:#fb7185;
+
+   -- Amber / Orange (cam) --
+   --brand-700:#b45309; --brand-600:#d97706; --brand-500:#f59e0b;
+   --brand-400:#fbbf24; --brand-50:#fffbeb;
+   --sidebar-900:#451a03; --sidebar-950:#2b1002; --sidebar-700:#92400e;
+   --brand-gradient-from:#f59e0b; --brand-gradient-to:#f97316;
+
+   ========================================================================== */

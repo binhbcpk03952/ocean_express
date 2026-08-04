@@ -1,0 +1,83 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ocean_express_db
+    environment:
+      POSTGRES_USER: "${DB_USER:-root}"
+      POSTGRES_PASSWORD: "${DB_PASS:-rootpassword}"
+      POSTGRES_DB: "${DB_NAME:-ocean_express_db}"
+    ports:
+      - "5434:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-root} -d ${DB_NAME:-ocean_express_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ocean_express_redis
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 50M
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: ocean_express_api
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: "${DB_HOST:-db}"
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_USER: "${DB_USER:-root}"
+      DB_PASS: "${DB_PASS:-rootpassword}"
+      DB_NAME: "${DB_NAME:-ocean_express_db}"
+      REDIS_HOST: "${REDIS_HOST:-redis}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      JWT_SECRET: "${JWT_SECRET:-oe_dev_change_this_to_a_long_random_secret_in_production}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:5175}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: ocean_express_admin
+    ports:
+      - "3000:80"
+    deploy:
+      resources:
+        limits:
+          memory: 50M
+    restart: unless-stopped
+
+
+volumes:
+  db_data:
