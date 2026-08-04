@@ -8,6 +8,8 @@ import (
 	"ocean-express-api/internal/domain"
 	"ocean-express-api/pkg/utils"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type shopUseCase struct {
