@@ -58,7 +58,7 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			internalGroup.GET("/orders/:id/label", handler.GetOrderLabel)
 			internalGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
 			internalGroup.PUT("/orders/:id/status", handler.UpdateStatus)
-			internalGroup.POST("/orders/:id/assign", middleware.RoleRequired(domain.RoleAdmin, domain.RoleHubStaff), handler.AssignOrder)
+			internalGroup.POST("/orders/:id/assign", middleware.RoleRequired(string(domain.RoleAdmin), string(domain.RoleHubStaff)), handler.AssignOrder)
 			internalGroup.POST("/orders/submit-cod", middleware.RoleRequired("first_mile_driver", "last_mile_driver"), handler.SubmitCOD)
 		}
 		
