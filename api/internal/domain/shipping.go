@@ -37,6 +37,9 @@ type ShippingOrder struct {
 	ReceiverLatitude      *float64   `json:"receiver_latitude" gorm:"column:receiver_latitude"`
 	ReceiverLongitude     *float64   `json:"receiver_longitude" gorm:"column:receiver_longitude"`
 	Weight                int        `json:"weight" gorm:"column:weight"`
+	Length                int        `json:"length" gorm:"column:length;default:0"`
+	Width                 int        `json:"width" gorm:"column:width;default:0"`
+	Height                int        `json:"height" gorm:"column:height;default:0"`
 	ShippingFee           float64    `json:"shipping_fee" gorm:"column:shipping_fee"`
 	CodAmount             float64    `json:"cod_amount" gorm:"column:cod_amount;default:0"`
 	EstimatedDeliveryTime *time.Time `json:"estimated_delivery_time" gorm:"column:estimated_delivery_time"`
@@ -47,6 +50,12 @@ type ShippingOrder struct {
 	DeliveryHubID         *string    `json:"delivery_hub_id" gorm:"column:delivery_hub_id"`
 	CodCollected          bool       `json:"cod_collected" gorm:"column:cod_collected;default:false"`
 	CodCollectedAt        *time.Time `json:"cod_collected_at" gorm:"column:cod_collected_at"`
+	DeliveryAttempts      int        `json:"delivery_attempts" gorm:"column:delivery_attempts;default:0"`
+	FailureReason         *string    `json:"failure_reason" gorm:"column:failure_reason"`
+	SlaDeadline           *time.Time `json:"sla_deadline" gorm:"column:sla_deadline"`
+	SlaBreached           bool       `json:"sla_breached" gorm:"column:sla_breached;default:false"`
+	ReturnFee             float64    `json:"return_fee" gorm:"column:return_fee;default:0"`
+	IsReturnConfirmed     bool       `json:"is_return_confirmed" gorm:"column:is_return_confirmed;default:false"`
 	CreatedAt             time.Time  `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt             time.Time  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 }
@@ -99,10 +108,11 @@ type OrderRepository interface {
 
 // OrderUseCase xử lý logic tạo vận đơn
 type OrderUseCase interface {
-	CreateOrder(ctx context.Context, shopID, receiverName, receiverPhone, receiverLocID, receiverAddress string, weight int, codAmount float64, senderLat, senderLng, receiverLat, receiverLng *float64) (*ShippingOrder, error)
-	UpdateOrderStatus(ctx context.Context, orderID, status, note, employeeID, employeeRole, employeeHubID string, lat, lng float64) error
+	CreateOrder(ctx context.Context, shopID, receiverName, receiverPhone, receiverLocID, receiverAddress string, weight, length, width, height int, codAmount float64, senderLat, senderLng, receiverLat, receiverLng *float64) (*ShippingOrder, error)
+	UpdateOrderStatus(ctx context.Context, orderID, status, note, failureReason, employeeID, employeeRole, employeeHubID string, lat, lng float64) error
 	GetOrders(ctx context.Context, role, employeeID, hubID string, pageParams PaginationParams) (*PaginatedResponse, error)
 	GetOrderDetails(ctx context.Context, id string) (*ShippingOrder, []*TrackingLog, error)
 	GetOrderDetailsByTrackingNumber(ctx context.Context, trackingNumber string) (*ShippingOrder, []*TrackingLog, error)
 	SubmitCOD(ctx context.Context, driverID string) (float64, error)
+	AssignOrder(ctx context.Context, orderID, shipperID, assignerID, role string) error
 }

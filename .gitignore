@@ -41,5 +41,4 @@ yarn-error.log*
 # Project specific
 osrm/
 .agent/
-.github/
 .roomodes

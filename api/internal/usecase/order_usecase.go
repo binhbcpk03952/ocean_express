@@ -13,32 +13,34 @@ import (
 )
 
 type orderUseCase struct {
-	orderRepo  domain.OrderRepository
-	rateUC     domain.RateUseCase
-	shopRepo   domain.ShopRepository
-	hubRepo    domain.HubRepository
-	locRepo    domain.LocationRepository
-	geocoder   geocoding.Geocoder
-	webhookSvc domain.WebhookService
-	walletUC   domain.WalletUseCase // nil-able: test cũ truyền nil, không ghi ví
+	orderRepo         domain.OrderRepository
+	rateUC            domain.RateUseCase
+	shopRepo          domain.ShopRepository
+	hubRepo           domain.HubRepository
+	locRepo           domain.LocationRepository
+	geocoder          geocoding.Geocoder
+	webhookSvc        domain.WebhookService
+	walletUC          domain.WalletUseCase
+	auditUC           domain.AuditUseCase
+	webhookDispatcher domain.WebhookDispatcher
 }
 
-// NewOrderUseCase khởi tạo order use case. walletUC có thể nil trong test không cần
-// vòng tiền; production truyền thật để ghi bút toán COD khi đơn delivered.
-func NewOrderUseCase(orderRepo domain.OrderRepository, rateUC domain.RateUseCase, shopRepo domain.ShopRepository, hubRepo domain.HubRepository, locRepo domain.LocationRepository, geocoder geocoding.Geocoder, webhookSvc domain.WebhookService, walletUC domain.WalletUseCase) domain.OrderUseCase {
+func NewOrderUseCase(orderRepo domain.OrderRepository, rateUC domain.RateUseCase, shopRepo domain.ShopRepository, hubRepo domain.HubRepository, locRepo domain.LocationRepository, geocoder geocoding.Geocoder, webhookSvc domain.WebhookService, walletUC domain.WalletUseCase, auditUC domain.AuditUseCase, webhookDispatcher domain.WebhookDispatcher) domain.OrderUseCase {
 	return &orderUseCase{
-		orderRepo:  orderRepo,
-		rateUC:     rateUC,
-		shopRepo:   shopRepo,
-		hubRepo:    hubRepo,
-		locRepo:    locRepo,
-		geocoder:   geocoder,
-		webhookSvc: webhookSvc,
-		walletUC:   walletUC,
+		orderRepo:         orderRepo,
+		rateUC:            rateUC,
+		shopRepo:          shopRepo,
+		hubRepo:           hubRepo,
+		locRepo:           locRepo,
+		geocoder:          geocoder,
+		webhookSvc:        webhookSvc,
+		walletUC:          walletUC,
+		auditUC:           auditUC,
+		webhookDispatcher: webhookDispatcher,
 	}
 }
 
-func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, receiverPhone, receiverLocID, receiverAddress string, weight int, codAmount float64, senderLat, senderLng, receiverLat, receiverLng *float64) (*domain.ShippingOrder, error) {
+func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, receiverPhone, receiverLocID, receiverAddress string, weight, length, width, height int, codAmount float64, senderLat, senderLng, receiverLat, receiverLng *float64) (*domain.ShippingOrder, error) {
 	shop, err := u.shopRepo.GetByID(ctx, shopID)
 	if err != nil || shop == nil {
 		return nil, errors.New("không tìm thấy thông tin đối tác")
@@ -48,13 +50,22 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 		return nil, errors.New("đối tác chưa cấu hình khu vực gửi hàng mặc định")
 	}
 
-	fee, err := u.rateUC.CalculateFee(ctx, *shop.LocationID, receiverLocID, weight)
+	chargeableWeight := weight
+	if length > 0 && width > 0 && height > 0 {
+		volWeight := (length * width * height) / 5
+		if volWeight > chargeableWeight {
+			chargeableWeight = volWeight
+		}
+	}
+
+	fee, err := u.rateUC.CalculateFee(ctx, *shop.LocationID, receiverLocID, chargeableWeight)
 	if err != nil {
 		return nil, fmt.Errorf("lỗi tính phí vận chuyển: %v", err)
 	}
 
 	trackingNumber := fmt.Sprintf("OE-%d", time.Now().UnixNano()/1000)
 	eta := time.Now().AddDate(0, 0, 3)
+	sla := time.Now().Add(48 * time.Hour)
 	orderID := uuid.New().String()
 
 	order := &domain.ShippingOrder{
@@ -69,9 +80,13 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 		ReceiverLocationID:    &receiverLocID,
 		ReceiverAddressDetail: receiverAddress,
 		Weight:                weight,
+		Length:                length,
+		Width:                 width,
+		Height:                height,
 		ShippingFee:           fee,
 		CodAmount:             codAmount,
 		EstimatedDeliveryTime: &eta,
+		SlaDeadline:           &sla,
 		Status:                "ready_to_pick",
 	}
 
@@ -147,18 +162,26 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 		return nil, errors.New("lỗi khi lưu vận đơn vào hệ thống")
 	}
 
-	// Trigger webhook bất đồng bộ
-	u.webhookSvc.SendOrderStatus(shop.WebhookURL, domain.WebhookPayload{
-		TrackingNumber: order.TrackingNumber,
-		Status:         order.Status,
-		Note:           logEntry.Note,
-		Timestamp:      time.Now(),
-	})
+	// Trigger webhook qua dispatcher
+	if u.webhookDispatcher != nil {
+		u.webhookDispatcher.Dispatch(domain.WebhookJob{
+			ShopID:         shop.ID,
+			WebhookURL:     shop.WebhookURL,
+			TrackingNumber: order.TrackingNumber,
+			Status:         order.Status,
+			Note:           logEntry.Note,
+		})
+	}
+
+	// Ghi nhận Audit Log cho hành động tạo đơn
+	if u.auditUC != nil {
+		u.auditUC.LogAction(ctx, shopID, "create_order", "shipping_orders", order.ID, "{}", `{"status": "ready_to_pick", "tracking_number": "`+order.TrackingNumber+`"}`)
+	}
 
 	return order, nil
 }
 
-func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, note, employeeID, employeeRole, employeeHubID string, lat, lng float64) error {
+func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, note, failureReason, employeeID, employeeRole, employeeHubID string, lat, lng float64) error {
 	order, err := u.orderRepo.GetByID(ctx, orderID)
 	if err != nil || order == nil {
 		return fmt.Errorf("%w: không tìm thấy vận đơn", domain.ErrNotFound)
@@ -177,14 +200,18 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 
 	// 2. State Machine Validation
 	validTransitions := map[string][]string{
-		"ready_to_pick": {"picked_up", "returned"},
-		"picked_up":     {"hub_inbound", "returned"},
-		"hub_inbound":   {"in_transit", "hub_outbound"},
-		"in_transit":    {"hub_inbound"},
-		"hub_outbound":  {"delivering"},
-		"delivering":    {"delivered", "returned", "hub_inbound"},
-		"delivered":     {},
-		"returned":      {},
+		"ready_to_pick":    {"picked_up", "returned"},
+		"picked_up":        {"hub_inbound", "returned"},
+		"hub_inbound":      {"in_transit", "hub_outbound"},
+		"in_transit":       {"hub_inbound"},
+		"hub_outbound":     {"delivering"},
+		"delivering":       {"delivered", "delivery_failed", "returned", "hub_inbound"},
+		"delivery_failed":  {"delivering", "return_requested"},
+		"return_requested": {"returning"},
+		"returning":        {"return_hub"},
+		"return_hub":       {"returned"},
+		"delivered":        {},
+		"returned":         {},
 	}
 
 	allowed, ok := validTransitions[order.Status]
@@ -208,14 +235,17 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 	// Admin được bỏ qua mọi ràng buộc role.
 	if employeeRole != "admin" {
 		allowedRoles := map[string][]string{
-			"picked_up":    {"first_mile_driver"},
-			"hub_inbound":  {"hub_staff"},
-			"hub_outbound": {"hub_staff"},
-			"in_transit":   {"hub_staff"},
-			"delivering":   {"last_mile_driver"},
-			"delivered":    {"last_mile_driver"},
-			// returned: mọi role vận hành (driver/hub_staff) đều có thể ghi nhận hoàn hàng
-			"returned": {"first_mile_driver", "last_mile_driver", "hub_staff"},
+			"picked_up":        {"first_mile_driver"},
+			"hub_inbound":      {"hub_staff"},
+			"hub_outbound":     {"hub_staff"},
+			"in_transit":       {"hub_staff"},
+			"delivering":       {"last_mile_driver"},
+			"delivery_failed":  {"last_mile_driver"},
+			"return_requested": {"last_mile_driver", "admin"},
+			"returning":        {"last_mile_driver", "first_mile_driver"},
+			"return_hub":       {"hub_staff"},
+			"delivered":        {"last_mile_driver"},
+			"returned":         {"first_mile_driver", "last_mile_driver", "hub_staff"},
 		}
 
 		if roles, exists := allowedRoles[status]; exists {
@@ -232,9 +262,40 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 		}
 	}
 
+	oldStatus := order.Status
+
+	if status == "delivery_failed" {
+		order.DeliveryAttempts++
+		if failureReason != "" {
+			order.FailureReason = &failureReason
+			note = fmt.Sprintf("Lý do: %s. %s", failureReason, note)
+		}
+		if order.DeliveryAttempts >= 3 {
+			status = "return_requested"
+			note = "Giao thất bại 3 lần, tự động chuyển hoàn. " + note
+		}
+	}
+
+	// Kiểm tra SLA Breach
+	if order.SlaDeadline != nil && time.Now().After(*order.SlaDeadline) && !order.SlaBreached {
+		// Chưa hoàn thành giao hàng hoặc trả hàng thì vi phạm
+		if status != "delivered" && status != "returned" {
+			order.SlaBreached = true
+		}
+	}
+
+	// Tính phí hoàn hàng khi đơn chuyển sang returned
+	if status == "returned" && oldStatus != "returned" {
+		order.ReturnFee = order.ShippingFee * 0.5
+	}
+
 	order.Status = status
 
 	// Khi hàng nằm trong kho, không tài xế nào đang ôm đơn. Reset để last-mile driver
+	// hoặc hub staff có thể quét tiếp.
+	if status == "hub_received" || status == "return_hub" || status == "returned" {
+		order.CurrentDriverID = nil
+	}
 	// có thể tự nhận đơn ở bước delivering (nếu không sẽ vẫn bị gán cho first-mile driver cũ).
 	if status == "hub_inbound" || status == "hub_outbound" {
 		order.CurrentDriverID = nil
@@ -274,14 +335,29 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 		}
 	}
 
+	// Khi trả hàng thành công: ghi bút toán phí trả hàng vào ví shop (-cước hoàn hàng).
+	if status == "returned" && u.walletUC != nil {
+		if err := u.walletUC.RecordReturnFee(ctx, order); err != nil {
+			fmt.Printf("cảnh báo: không ghi được bút toán Return Fee cho đơn %s: %v\n", order.ID, err)
+		}
+	}
+
+	// Ghi nhận Audit Log
+	if u.auditUC != nil {
+		u.auditUC.LogAction(ctx, employeeID, "update_status", "shipping_orders", order.ID, `{"status": "`+oldStatus+`"}`, `{"status": "`+status+`"}`)
+	}
+
 	shop, err := u.shopRepo.GetByID(ctx, order.ShopID)
 	if err == nil && shop != nil {
-		u.webhookSvc.SendOrderStatus(shop.WebhookURL, domain.WebhookPayload{
-			TrackingNumber: order.TrackingNumber,
-			Status:         order.Status,
-			Note:           note,
-			Timestamp:      time.Now(),
-		})
+		if u.webhookDispatcher != nil {
+			u.webhookDispatcher.Dispatch(domain.WebhookJob{
+				ShopID:         shop.ID,
+				WebhookURL:     shop.WebhookURL,
+				TrackingNumber: order.TrackingNumber,
+				Status:         order.Status,
+				Note:           note,
+			})
+		}
 	}
 
 	return nil
@@ -330,6 +406,39 @@ func (u *orderUseCase) GetOrderDetailsByTrackingNumber(ctx context.Context, trac
 
 func (u *orderUseCase) SubmitCOD(ctx context.Context, driverID string) (float64, error) {
 	return u.orderRepo.SubmitCOD(ctx, driverID)
+}
+
+func (u *orderUseCase) AssignOrder(ctx context.Context, orderID, shipperID, assignerID, role string) error {
+	if role != "admin" && role != "hub_staff" {
+		return fmt.Errorf("%w: chỉ admin hoặc điều phối viên mới được phép gán đơn", domain.ErrForbidden)
+	}
+
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil || order == nil {
+		return fmt.Errorf("%w: không tìm thấy vận đơn", domain.ErrNotFound)
+	}
+
+	// Verify shipper exists
+	// Ideally we would fetch the employee here, but for now we just assign
+	order.CurrentDriverID = &shipperID
+
+	logEntry := &domain.TrackingLog{
+		OrderID:    order.ID,
+		Status:     order.Status, // status doesn't change
+		Note:       "Đơn hàng được phân công cho nhân viên giao nhận",
+		EmployeeID: &assignerID,
+	}
+
+	err = u.orderRepo.UpdateStatus(ctx, order, logEntry)
+	if err != nil {
+		return fmt.Errorf("lỗi gán đơn hàng: %v", err)
+	}
+
+	if u.auditUC != nil {
+		u.auditUC.LogAction(ctx, assignerID, "assign_order", "shipping_orders", order.ID, "{}", `{"assigned_to": "`+shipperID+`"}`)
+	}
+
+	return nil
 }
 
 // buildFullAddress ghép địa chỉ chi tiết với tên đơn vị hành chính (xã/huyện/tỉnh) để tăng độ chính xác geocoding.

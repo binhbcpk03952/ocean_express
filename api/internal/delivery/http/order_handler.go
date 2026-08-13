@@ -1,6 +1,8 @@
 package http
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"ocean-express-api/internal/delivery/http/middleware"
 	"ocean-express-api/internal/domain"
@@ -36,7 +38,10 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 		shopPortalGroup.Use(middleware.AuthRequired(), middleware.RoleRequired(domain.RoleShop))
 		{
 			shopPortalGroup.POST("/orders", handler.CreateOrderPortal)
+			shopPortalGroup.POST("/orders/import", handler.ImportOrders)
 			shopPortalGroup.POST("/rates/calculate", handler.CalculateRate)
+			shopPortalGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
+			shopPortalGroup.GET("/orders/:id/label", handler.GetOrderLabel)
 		}
 
 		// 3. API DÃ nh cho Ná»™i bá»™ (NhÃ¢n viÃªn / Shipper)
@@ -44,14 +49,16 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 		internalGroup.Use(middleware.AuthRequired())
 		{
 			internalGroup.GET("/orders", handler.GetOrders)
-			// Tra cá»©u theo mÃ£ váº­n Ä‘Æ¡n: má»i role ná»™i bá»™ Ä‘á»u tra Ä‘Æ°á»£c (Ä‘áº·c biá»‡t Hub Staff
+			// Tra cá»©u theo mÃ£ váº­n Ä‘Æ¡n: má» i role ná»™i bá»™ Ä‘á» u tra Ä‘Æ°á»£c (Ä‘áº·c biá»‡t Hub Staff
 			// dÃ¹ng Ä‘á»ƒ quÃ©t Ä‘Æ¡n chÆ°a náº±m trong danh sÃ¡ch hub cá»§a mÃ¬nh). DÃ¹ng path riÃªng
 			// /tracking/:tracking_number thay vÃ¬ lá»“ng dÆ°á»›i /orders/... vÃ¬ Gin khÃ´ng cho
 			// static segment ("tracking") Ä‘á»©ng cÃ¹ng vá»‹ trÃ­ vá»›i param (:id).
 			internalGroup.GET("/tracking/:tracking_number", handler.GetOrderByTracking)
 			internalGroup.GET("/orders/:id", handler.GetOrder)
 			internalGroup.GET("/orders/:id/label", handler.GetOrderLabel)
+			internalGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
 			internalGroup.PUT("/orders/:id/status", handler.UpdateStatus)
+			internalGroup.POST("/orders/:id/assign", middleware.RoleRequired(domain.RoleAdmin, domain.RoleHubStaff), handler.AssignOrder)
 			internalGroup.POST("/orders/submit-cod", middleware.RoleRequired("first_mile_driver", "last_mile_driver"), handler.SubmitCOD)
 		}
 		
@@ -66,6 +73,9 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 type CalculateRateRequest struct {
 	ReceiverLocationID string `json:"receiver_location_id" binding:"required"`
 	Weight             int    `json:"weight" binding:"required"`
+	Length             int    `json:"length"`
+	Width              int    `json:"width"`
+	Height             int    `json:"height"`
 }
 
 func (h *OrderHandler) CalculateRate(c *gin.Context) {
@@ -73,18 +83,25 @@ func (h *OrderHandler) CalculateRate(c *gin.Context) {
 	
 	var req CalculateRateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dữ liệu không hợp lệ"})
 		return
 	}
 
-	// Táº¡m truyá»n fromLocID rá»—ng Ä‘á»ƒ trigger fallback default rate
-	fee, err := h.rateUseCase.CalculateFee(c.Request.Context(), "", req.ReceiverLocationID, req.Weight)
+	chargeableWeight := req.Weight
+	if req.Length > 0 && req.Width > 0 && req.Height > 0 {
+		volWeight := (req.Length * req.Width * req.Height) / 5
+		if volWeight > chargeableWeight {
+			chargeableWeight = volWeight
+		}
+	}
+
+	fee, err := h.rateUseCase.CalculateFee(c.Request.Context(), "", req.ReceiverLocationID, chargeableWeight)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"fee": fee, "shop_id": shopID}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"fee": fee, "shop_id": shopID, "chargeable_weight": chargeableWeight}})
 }
 
 type CreateOrderRequest struct {
@@ -93,6 +110,9 @@ type CreateOrderRequest struct {
 	ReceiverLocationID    string   `json:"receiver_location_id" binding:"required"`
 	ReceiverAddressDetail string   `json:"receiver_address_detail" binding:"required"`
 	Weight                int      `json:"weight" binding:"required"`
+	Length                int      `json:"length"`
+	Width                 int      `json:"width"`
+	Height                int      `json:"height"`
 	CodAmount             float64  `json:"cod_amount"`
 	SenderLatitude        *float64 `json:"sender_latitude"`
 	SenderLongitude       *float64 `json:"sender_longitude"`
@@ -106,7 +126,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dữ liệu không hợp lệ"})
 		return
 	}
 
@@ -118,6 +138,9 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		req.ReceiverLocationID, 
 		req.ReceiverAddressDetail, 
 		req.Weight, 
+		req.Length,
+		req.Width,
+		req.Height,
 		req.CodAmount,
 		req.SenderLatitude,
 		req.SenderLongitude,
@@ -133,15 +156,15 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": order})
 }
 
-// CreateOrderPortal lÃ  biáº¿n thá»ƒ cá»§a CreateOrder cho portal Shop: shopID láº¥y tá»«
-// phiÃªn Ä‘Äƒng nháº­p (JWT user_id) thay vÃ¬ API key. TÃ¡i dÃ¹ng cÃ¹ng usecase.
+// CreateOrderPortal là biến thể của CreateOrder cho portal Shop: shopID lấy từ
+// phiên đăng nhập (JWT user_id) thay vì API key. Tái dùng cùng usecase.
 func (h *OrderHandler) CreateOrderPortal(c *gin.Context) {
 	shopIDStr, _ := c.Get("user_id")
 	shopID, _ := shopIDStr.(string)
 
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dữ liệu không hợp lệ"})
 		return
 	}
 
@@ -153,6 +176,9 @@ func (h *OrderHandler) CreateOrderPortal(c *gin.Context) {
 		req.ReceiverLocationID,
 		req.ReceiverAddressDetail,
 		req.Weight,
+		req.Length,
+		req.Width,
+		req.Height,
 		req.CodAmount,
 		req.SenderLatitude,
 		req.SenderLongitude,
@@ -163,7 +189,6 @@ func (h *OrderHandler) CreateOrderPortal(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": order})
 }
 
@@ -177,10 +202,11 @@ type UpdateStatusRequest struct {
 func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
-		Status   string  `json:"status" binding:"required"`
-		Note     string  `json:"note"`
-		Latitude float64 `json:"latitude"`
-		Longitude float64 `json:"longitude"`
+		Status        string  `json:"status" binding:"required"`
+		Note          string  `json:"note"`
+		FailureReason string  `json:"failure_reason"`
+		Latitude      float64 `json:"latitude"`
+		Longitude     float64 `json:"longitude"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -205,13 +231,46 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 		hubId = userHubId.(string)
 	}
 
-	err := h.orderUseCase.UpdateOrderStatus(c.Request.Context(), id, req.Status, req.Note, userId, string(userRole), hubId, req.Latitude, req.Longitude)
+	err := h.orderUseCase.UpdateOrderStatus(c.Request.Context(), id, req.Status, req.Note, req.FailureReason, userId, string(userRole), hubId, req.Latitude, req.Longitude)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order status updated"})
+}
+
+type AssignOrderRequest struct {
+	ShipperID string `json:"shipper_id" binding:"required"`
+}
+
+func (h *OrderHandler) AssignOrder(c *gin.Context) {
+	id := c.Param("id")
+	var req AssignOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userIdStr, _ := c.Get("user_id")
+	userId := ""
+	if userIdStr != nil {
+		userId = userIdStr.(string)
+	}
+
+	userRoleStr, _ := c.Get("role")
+	var userRole string
+	if userRoleStr != nil {
+		userRole = userRoleStr.(string)
+	}
+
+	err := h.orderUseCase.AssignOrder(c.Request.Context(), id, req.ShipperID, userId, userRole)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Order assigned successfully"})
 }
 
 func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
@@ -343,4 +402,79 @@ func (h *OrderHandler) GetPublicTracking(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": publicData})
+}
+
+// ImportOrders handles CSV file upload and batch order creation
+func (h *OrderHandler) ImportOrders(c *gin.Context) {
+	shopIDStr, _ := c.Get("user_id")
+	shopID, _ := shopIDStr.(string)
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Vui lòng chọn file CSV"})
+		return
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Không thể đọc file"})
+		return
+	}
+	defer f.Close()
+
+	importReader := csv.NewReader(f)
+	records, err := importReader.ReadAll()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File CSV không hợp lệ"})
+		return
+	}
+
+	if len(records) < 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "File CSV không có dữ liệu"})
+		return
+	}
+
+	successCount := 0
+	var errors []string
+
+	for i, row := range records[1:] { // Bỏ qua header
+		if len(row) < 5 {
+			continue
+		}
+		
+		receiverName := row[0]
+		receiverPhone := row[1]
+		receiverLocID := row[2]
+		receiverAddress := row[3]
+		weightStr := row[4]
+		
+		weight := 1000 // default
+		fmt.Sscanf(weightStr, "%d", &weight)
+
+		_, err := h.orderUseCase.CreateOrder(
+			c.Request.Context(),
+			shopID,
+			receiverName,
+			receiverPhone,
+			receiverLocID,
+			receiverAddress,
+			weight,
+			0, 0, 0, 0, // Kích thước mặc định
+			nil, nil, nil, nil, // Không có tọa độ GPS
+		)
+
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Dòng %d: %v", i+2, err))
+		} else {
+			successCount++
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"success_count": successCount,
+			"errors":        errors,
+		},
+	})
 }

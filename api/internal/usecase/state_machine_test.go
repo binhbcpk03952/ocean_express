@@ -24,7 +24,18 @@ func seedOrderRepo(status string, driverID *string) *MockOrderRepo {
 
 func newOrderUC(orderRepo *MockOrderRepo) domain.OrderUseCase {
 	rateUC := usecase.NewRateUseCase(&MockRateRepo{MockRate: &domain.ShippingRate{BaseWeight: 1000, BaseFee: 30000}})
-	return usecase.NewOrderUseCase(orderRepo, rateUC, &MockShopRepo{}, &MockWebhookService{}, nil)
+	return usecase.NewOrderUseCase(
+		orderRepo,
+		rateUC,
+		&MockShopRepo{},
+		&MockHubRepo{},
+		&MockLocationRepo{},
+		&MockGeocoder{},
+		&MockWebhookService{},
+		&MockWalletUseCase{},
+		nil,
+		nil,
+	)
 }
 
 func TestUpdateStatus_ValidTransitions(t *testing.T) {

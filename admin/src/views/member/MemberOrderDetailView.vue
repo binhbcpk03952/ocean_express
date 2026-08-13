@@ -12,6 +12,9 @@
       <div class="min-w-0">
         <span class="font-mono text-base font-semibold text-strong">{{ order?.tracking_number || '—' }}</span>
       </div>
+      <BaseButton v-if="order" variant="secondary" size="sm" @click="printOrderPDF(order.id)">
+        <Printer class="w-4 h-4 mr-1" /> In vận đơn
+      </BaseButton>
       <StatusBadge v-if="order" :status="order.status" class="ml-auto" />
     </div>
 
@@ -103,7 +106,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { useToastStore } from '../../stores/toastStore';
 import { statusColor } from '../../composables/useStatus';
 import { actionsFor } from '../../composables/useMemberActions';
-import { ArrowLeft, User, MapPin, Wallet, Weight, PackageX } from 'lucide-vue-next';
+import { ArrowLeft, User, MapPin, Wallet, Weight, PackageX, Printer } from 'lucide-vue-next';
+import { usePdfPrint } from '../../composables/usePdfPrint';
 import BaseButton from '../../components/ui/BaseButton.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import MapTracking from '../../components/MapTracking.vue';
@@ -112,6 +116,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToastStore();
+const { printOrderPDF } = usePdfPrint();
 const orderId = route.params.id;
 
 const loading = ref(true);

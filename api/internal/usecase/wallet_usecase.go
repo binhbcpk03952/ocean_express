@@ -60,6 +60,34 @@ func (u *walletUseCase) RecordCOD(ctx context.Context, order *domain.ShippingOrd
 	return nil
 }
 
+func (u *walletUseCase) RecordReturnFee(ctx context.Context, order *domain.ShippingOrder) error {
+	if order == nil {
+		return fmt.Errorf("%w: đơn hàng rỗng", domain.ErrValidation)
+	}
+
+	has, err := u.walletRepo.HasOrderReturnTransaction(ctx, order.ID)
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+
+	if order.ReturnFee > 0 {
+		if err := u.walletRepo.AddTransaction(ctx, &domain.WalletTransaction{
+			ShopID:  order.ShopID,
+			OrderID: &order.ID,
+			Type:    domain.WalletTxReturnFee,
+			Amount:  -order.ReturnFee,
+			Note:    fmt.Sprintf("Phí hoàn hàng đơn %s", order.TrackingNumber),
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (u *walletUseCase) GetWallet(ctx context.Context, shopID string) (float64, []*domain.WalletTransaction, error) {
 	balance, err := u.walletRepo.AvailableBalance(ctx, shopID)
 	if err != nil {

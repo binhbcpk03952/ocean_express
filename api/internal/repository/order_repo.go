@@ -104,7 +104,7 @@ func (r *orderRepository) UpdateStatus(ctx context.Context, order *domain.Shippi
 		// Cập nhật trạng thái + tài xế đang ôm đơn (current_driver_id có thể được gán hoặc reset).
 		// Dùng Select để GORM ghi cả giá trị NULL cho current_driver_id khi reset.
 		if err := tx.Model(order).
-			Select("status", "current_driver_id", "current_hub_id", "updated_at").
+			Select("status", "current_driver_id", "current_hub_id", "delivery_attempts", "failure_reason", "sla_breached", "return_fee", "is_return_confirmed", "updated_at").
 			Updates(order).Error; err != nil {
 			return err
 		}

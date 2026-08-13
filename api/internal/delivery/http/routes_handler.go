@@ -60,19 +60,14 @@ func (h *RoutesHandler) OptimizeRoute(c *gin.Context) {
 
 	resp, err := http.Get(osrmURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Lỗi kết nối OSRM: " + err.Error()})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": req.Locations, "fallback": true})
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Lỗi đọc OSRM response"})
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "OSRM trả về lỗi: " + string(body)})
+	if err != nil || resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": req.Locations, "fallback": true})
 		return
 	}
 

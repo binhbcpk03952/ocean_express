@@ -1,0 +1,265 @@
+name: Build and Deploy Ocean Express
+
+# ==============================================================================
+# TRIGGER: push trực tiếp lên `main`.
+#
+# LÝ DO KHÔNG DÙNG `workflow_run`:
+#   GitHub LUÔN chạy phiên bản workflow `workflow_run` nằm trên DEFAULT BRANCH.
+#   Vì vậy mọi sửa đổi deploy.yml ở nhánh khác sẽ KHÔNG được thực thi, rất khó
+#   debug ("Actions xanh nhưng web vẫn bản cũ"). Trigger `push` luôn chạy đúng
+#   phiên bản file nằm trên chính commit vừa push.
+#
+#   Job `test` bên dưới đã gate việc deploy, nên không cần chờ workflow CI.
+# ==============================================================================
+on:
+  push:
+    branches:
+      - main
+  # Cho phép deploy lại thủ công từ tab Actions mà không cần commit mới
+  workflow_dispatch:
+
+# Không cho 2 lần deploy chạy song song (tránh race condition khi ghi đè dist/)
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # JOB 1: Test — phải PASS thì mới được deploy
+  # ---------------------------------------------------------------------------
+  test:
+    name: Backend Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: api/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Run Unit Tests
+        run: go test ./...
+
+  # ---------------------------------------------------------------------------
+  # JOB 2: Build frontend + Deploy
+  # Build nặng chạy trên GitHub Runner để VPS 2GB RAM không bị sập.
+  # ---------------------------------------------------------------------------
+  build_and_deploy:
+    name: Build Frontend & Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      # Không cần `ref:` — trigger `push` đã checkout đúng commit vừa push.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Show what we are deploying
+        run: |
+          echo "Branch : ${{ github.ref_name }}"
+          echo "Commit : ${{ github.sha }}"
+          git log -1 --pretty='%h %s'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: api/go.sum
+
+      # Build binary Go ngay trên Runner (linux/amd64, tĩnh) để VPS 2GB RAM
+      # không phải chạy `go build` — đây là mục đích chính của pipeline này.
+      - name: Build Go Binary (linux/amd64)
+        working-directory: ./api
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          go build -trimpath -ldflags="-s -w" -o main ./cmd/server/main.go
+          ls -lh main
+          file main || true
+
+      - name: NPM Install (Admin)
+        working-directory: ./admin
+        run: npm ci || npm install
+
+      - name: NPM Build (Admin)
+        working-directory: ./admin
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://apiocean.bcbdev.id.vn/api' }}
+        run: npm run build
+
+      # Ghi commit SHA vào build để verify được chính xác bản nào đang chạy.
+      # Kiểm tra nhanh: curl -s https://<domain>/version.json
+      - name: Stamp build version
+        working-directory: ./admin
+        run: |
+          printf '{"commit":"%s","ref":"%s","built_at":"%s","run_id":"%s"}\n' \
+            "${{ github.sha }}" "${{ github.ref_name }}" "$(date -u +%FT%TZ)" "${{ github.run_id }}" \
+            > dist/version.json
+          test -f dist/index.html || { echo "FATAL: build khong tao ra index.html"; exit 1; }
+          cat dist/version.json
+
+      - name: Upload Admin Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-build-${{ github.sha }}
+          path: ./admin/dist/
+          retention-days: 7
+
+      - name: Copy Admin Build to VPS via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          source: "admin/dist/*"
+          target: "/tmp/admin_dist_${{ github.run_id }}"
+          strip_components: 2
+          overwrite: true
+
+      - name: Copy API Binary to VPS via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          source: "api/main"
+          target: "/tmp/api_bin_${{ github.run_id }}"
+          strip_components: 1
+          overwrite: true
+
+      - name: SSH Deploy (Backend & Atomic Swap Frontend)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          command_timeout: 30m
+          script: |
+            set -e
+            cd ${{ secrets.PROJECT_PATH }}
+
+            STAGE=/tmp/admin_dist_${{ github.run_id }}
+            APIBIN=/tmp/api_bin_${{ github.run_id }}/main
+
+            # Sanity check: build phải có index.html, nếu không thì dừng ngay,
+            # KHÔNG được xoá dist đang chạy (tránh sập site vì deploy rỗng).
+            if [ ! -f "$STAGE/index.html" ]; then
+              echo "FATAL: $STAGE/index.html khong ton tai — huy deploy."
+              exit 1
+            fi
+            if [ ! -f "$APIBIN" ]; then
+              echo "FATAL: $APIBIN khong ton tai — huy deploy."
+              exit 1
+            fi
+
+            # 1. Kéo code mới nhất (docker-compose, init.sql...) đúng commit đang
+            #    deploy. Làm TRƯỚC khi đặt binary vào, vì `git reset --hard` +
+            #    `git clean` sẽ xoá mất file untracked như api/main.
+            git fetch origin main
+            git reset --hard ${{ github.sha }}
+
+            # 2. Đặt binary đã build sẵn vào đúng context của Dockerfile.runtime
+            install -m 0755 "$APIBIN" api/main
+            rm -rf "$(dirname "$APIBIN")"
+
+            # 3. Deploy frontend kiểu ATOMIC SWAP:
+            #    copy sang thư mục release mới rồi `mv` đè lên dist cũ.
+            #    Tránh khoảng thời gian dist rỗng (user gặp trang trắng/404)
+            #    như cách `rm -rf dist/* && cp`.
+            RELEASE=admin/dist_${{ github.run_id }}
+            rm -rf "$RELEASE" admin/dist_old
+            mkdir -p "$RELEASE"
+            cp -rf "$STAGE"/. "$RELEASE"/
+            if [ -d admin/dist ]; then
+              mv admin/dist admin/dist_old
+            fi
+            mv "$RELEASE" admin/dist
+            rm -rf admin/dist_old "$STAGE"
+
+            # 4. Rebuild image api (chỉ COPY binary, KHÔNG compile Go trên VPS)
+            #    rồi khởi động toàn bộ stack.
+            docker compose up -d --build api
+            docker compose up -d db redis admin
+
+            # 5. Nginx trong container admin mount dist read-only; sau khi swap
+            #    thư mục cần reload để nginx nhả inode cũ.
+            docker compose exec -T admin nginx -t
+            docker compose exec -T admin nginx -s reload
+
+            # 6. Xoá image cũ để giải phóng dung lượng VPS
+            docker image prune -f
+
+            echo "=== Deployed version on disk ==="
+            cat admin/dist/version.json || true
+
+  # ---------------------------------------------------------------------------
+  # JOB 3: Verify — gọi thẳng vào site public, so commit đang chạy với commit
+  # vừa build. Nếu lệch => FAIL. "Actions xanh" đồng nghĩa "web đã đúng bản mới".
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Verify Deployment
+    needs: build_and_deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify frontend is live
+        run: |
+          URL="${{ vars.FRONTEND_URL }}"
+          if [ -z "$URL" ]; then
+            echo "Bo qua: chua cau hinh bien FRONTEND_URL trong repo variables."
+            exit 0
+          fi
+          echo "Checking $URL/version.json ..."
+          for i in 1 2 3 4 5; do
+            LIVE=$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$URL/version.json" | tr -d ' \n' || echo '')
+            echo "Attempt $i -> $LIVE"
+            case "$LIVE" in
+              *"${{ github.sha }}"*)
+                echo "OK: live site dang chay dung commit ${{ github.sha }}"
+                exit 0
+                ;;
+            esac
+            sleep 10
+          done
+          echo "FAIL: live site KHONG chay commit ${{ github.sha }}."
+          echo "Kiem tra: DNS/CDN cache, nginx root path, hoac buoc SCP."
+          exit 1
+
+      - name: Verify API health
+        run: |
+          API="${{ vars.API_URL }}"
+          if [ -z "$API" ]; then
+            echo "Bo qua: chua cau hinh bien API_URL trong repo variables."
+            exit 0
+          fi
+          for i in 1 2 3 4 5; do
+            if curl -fsSL --max-time 20 "$API" >/dev/null 2>&1; then
+              echo "OK: API phan hoi tai $API"
+              exit 0
+            fi
+            echo "Attempt $i that bai, doi 10s..."
+            sleep 10
+          done
+          echo "FAIL: API khong phan hoi tai $API"
+          exit 1

@@ -6,9 +6,15 @@
         <h1 class="text-2xl font-semibold text-strong">Vận đơn</h1>
         <p class="text-meta text-sm mt-1">Theo dõi và cập nhật trạng thái đơn hàng</p>
       </div>
-      <BaseButton variant="secondary" size="md" :loading="loading" @click="fetchOrders">
-        <RefreshCw class="w-4 h-4" /> Làm mới
-      </BaseButton>
+      <div class="flex gap-2">
+        <input type="file" ref="fileInput" @change="handleImport" class="hidden" accept=".csv" />
+        <BaseButton v-if="authStore.user?.role === 'shop'" variant="outline" size="md" :loading="isImporting" @click="$refs.fileInput.click()">
+          <Upload class="w-4 h-4" /> Nhập CSV
+        </BaseButton>
+        <BaseButton variant="secondary" size="md" :loading="loading" @click="fetchOrders">
+          <RefreshCw class="w-4 h-4" /> Làm mới
+        </BaseButton>
+      </div>
     </div>
 
     <BaseCard body-class="">
@@ -83,12 +89,23 @@
                 <div class="font-semibold text-strong tabular">{{ formatMoney(order.cod_amount) }}đ</div>
                 <div class="text-meta text-xs tabular">Phí: {{ formatMoney(order.shipping_fee) }}đ</div>
               </td>
-              <td class="px-5 py-4"><StatusBadge :status="order.status" /></td>
+              <td class="px-5 py-4">
+                <StatusBadge :status="order.status" />
+                <div v-if="order.delivery_attempts > 0" class="text-meta text-[10px] mt-1">
+                  Giao lại: {{ order.delivery_attempts }} lần
+                </div>
+                <div v-if="isSlaBreached(order)" class="text-red-500 font-bold text-[10px] mt-1 flex items-center gap-1">
+                  <AlertCircle class="w-3 h-3" /> QUÁ HẠN SLA
+                </div>
+              </td>
               <td class="px-5 py-4">
                 <div class="flex items-center justify-end gap-2">
                   <router-link :to="`/orders/${order.id}`">
                     <BaseButton variant="ghost" size="sm"><Eye class="w-4 h-4" /> Chi tiết</BaseButton>
                   </router-link>
+                  <BaseButton v-if="canAssign(order)" variant="secondary" size="sm" @click="openAssignModal(order)">
+                    <UserPlus class="w-4 h-4" /> Phân công
+                  </BaseButton>
                   <BaseButton v-if="canUpdateStatus(order)" variant="secondary" size="sm" @click="openStatusModal(order)">
                     <PencilLine class="w-4 h-4" /> Cập nhật
                   </BaseButton>
@@ -140,6 +157,25 @@
         <BaseButton variant="primary" :loading="isUpdating" @click="updateStatus">Lưu thay đổi</BaseButton>
       </template>
     </BaseModal>
+
+    <!-- Modal Phân công Shipper -->
+    <BaseModal v-model="showAssignModal" :title="`Phân công Shipper cho ${selectedOrder?.tracking_number || ''}`">
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-meta">Trạng thái:</span>
+          <StatusBadge v-if="selectedOrder" :status="selectedOrder.status" />
+        </div>
+        <div v-if="loadingShippers" class="text-sm text-meta">Đang tải danh sách Shipper...</div>
+        <FormSelect v-else v-model="assignForm.shipper_id" label="Chọn Shipper">
+          <option value="" disabled>-- Chọn Shipper --</option>
+          <option v-for="s in shippers" :key="s.id" :value="s.id">{{ s.full_name }} ({{ s.phone }})</option>
+        </FormSelect>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showAssignModal = false">Hủy</BaseButton>
+        <BaseButton variant="primary" :loading="isAssigning" @click="assignOrder" :disabled="!assignForm.shipper_id">Phân công</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -149,7 +185,7 @@ import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { STATUS_ORDER, statusConfig } from '../composables/useStatus';
-import { RefreshCw, Search, Eye, PencilLine, PackageX } from 'lucide-vue-next';
+import { RefreshCw, Search, Eye, PencilLine, PackageX, Upload, AlertCircle, UserPlus } from 'lucide-vue-next';
 import BaseCard from '../components/ui/BaseCard.vue';
 import BaseButton from '../components/ui/BaseButton.vue';
 import BaseModal from '../components/ui/BaseModal.vue';
@@ -172,6 +208,27 @@ const isUpdating = ref(false);
 const selectedOrder = ref(null);
 const form = ref({ status: '', note: '' });
 
+// Phân công Shipper
+const showAssignModal = ref(false);
+const isAssigning = ref(false);
+const assignForm = ref({ shipper_id: '' });
+const shippers = ref([]);
+const loadingShippers = ref(false);
+
+const fetchShippers = async () => {
+  loadingShippers.value = true;
+  try {
+    const res = await api.get('/employees');
+    if (res.success) {
+      shippers.value = (res.data || []).filter(e => e.role === 'first_mile_driver' || e.role === 'last_mile_driver');
+    }
+  } catch (error) {
+    console.error('Không thể tải shipper', error);
+  } finally {
+    loadingShippers.value = false;
+  }
+};
+
 const fetchOrders = async () => {
   loading.value = true;
   try {
@@ -193,6 +250,37 @@ const fetchOrders = async () => {
   }
 };
 
+const isImporting = ref(false);
+const fileInput = ref(null);
+
+const handleImport = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  isImporting.value = true;
+  try {
+    const res = await api.post('/shop/orders/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    if (res.success) {
+      toast.success(`Nhập thành công ${res.data.success_count} đơn hàng`);
+      if (res.data.errors && res.data.errors.length > 0) {
+        console.warn('Lỗi nhập Excel:', res.data.errors);
+        toast.error(`Có ${res.data.errors.length} dòng lỗi, xem console`);
+      }
+      fetchOrders();
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.error || 'Lỗi khi nhập file');
+  } finally {
+    isImporting.value = false;
+    e.target.value = null; // reset input
+  }
+};
+
 const filteredOrders = computed(() => {
   const q = search.value.trim().toLowerCase();
   return orders.value.filter((o) => {
@@ -205,6 +293,12 @@ const filteredOrders = computed(() => {
     );
   });
 });
+
+const isSlaBreached = (order) => {
+  if (!order.sla_deadline) return false;
+  if (['delivered', 'returned'].includes(order.status)) return false;
+  return new Date(order.sla_deadline) < new Date();
+};
 
 const openStatusModal = (order) => {
   selectedOrder.value = order;
@@ -249,6 +343,37 @@ const canUpdateStatus = (order) => {
     return !order.current_driver_id || order.current_driver_id === authStore.user.id;
   }
   return false;
+};
+
+const canAssign = (order) => {
+  const role = authStore.user?.role;
+  return role === 'admin' || role === 'hub_staff';
+};
+
+const openAssignModal = (order) => {
+  selectedOrder.value = order;
+  assignForm.value.shipper_id = order.current_driver_id || '';
+  if (shippers.value.length === 0) fetchShippers();
+  showAssignModal.value = true;
+};
+
+const assignOrder = async () => {
+  if (!selectedOrder.value || !assignForm.value.shipper_id) return;
+  isAssigning.value = true;
+  try {
+    const res = await api.post(`/orders/${selectedOrder.value.id}/assign`, {
+      shipper_id: assignForm.value.shipper_id
+    });
+    if (res.success) {
+      toast.success('Phân công Shipper thành công');
+      showAssignModal.value = false;
+      fetchOrders();
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.error?.message || error.response?.data?.error || 'Phân công thất bại');
+  } finally {
+    isAssigning.value = false;
+  }
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('vi-VN').format(val || 0);

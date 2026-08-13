@@ -120,6 +120,11 @@ func main() {
 		}
 	}
 
+	// AutoMigrate Customer
+	if err := db.AutoMigrate(&domain.Customer{}); err != nil {
+		log.Printf("Cảnh báo: AutoMigrate Customer thất bại: %v", err)
+	}
+
 	// 2. JWT Secret Key setup
 	if secret := os.Getenv("JWT_SECRET"); secret != "" {
 		utils.JWTSecretKey = []byte(secret)
@@ -147,12 +152,16 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(rdb)
 	deviceRepo := repository.NewDeviceRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
+	customerRepo := repository.NewCustomerRepository(db)
+	auditRepo := repository.NewAuditRepository(db)
 
 	// Bật kiểm tra session trong AuthRequired middleware
 	middleware.SessionStore = sessionRepo
 
 	// Infrastructure Services
 	webhookSvc := webhook.NewWebhookService()
+	webhookDispatcher := usecase.NewWebhookDispatcher(100)
+	webhookDispatcher.Start(5)
 	notifSvc := notification.NewStubService(deviceRepo)
 	
 	var emailSvc domain.EmailService
@@ -178,13 +187,15 @@ func main() {
 	shopAuthUC := usecase.NewShopAuthUseCase(shopRepo, sessionRepo, emailSvc)
 	rateUC := usecase.NewRateUseCase(rateRepo)
 	walletUC := usecase.NewWalletUseCase(walletRepo)
-	orderUC := usecase.NewOrderUseCase(orderRepo, rateUC, shopRepo, hubRepo, locRepo, geocoder, webhookSvc, walletUC)
+	auditUC := usecase.NewAuditUseCase(auditRepo)
+	orderUC := usecase.NewOrderUseCase(orderRepo, rateUC, shopRepo, hubRepo, locRepo, geocoder, webhookSvc, walletUC, auditUC, webhookDispatcher)
 	locUC := usecase.NewLocationUseCase(locRepo)
 	hubUC := usecase.NewHubUseCase(hubRepo, locRepo)
 	shopUC := usecase.NewShopUseCase(shopRepo, sessionRepo, emailSvc)
 	empUC := usecase.NewEmployeeUseCase(empRepo)
 	statsUC := usecase.NewStatsUseCase(statsRepo)
 	deviceUC := usecase.NewDeviceUseCase(deviceRepo)
+	customerUC := usecase.NewCustomerUseCase(customerRepo)
 
 	// 4. Gin Router Setup
 	r := gin.Default()
@@ -237,6 +248,7 @@ func main() {
 	httpDelivery.NewRoutesHandler(r)
 	httpDelivery.NewDeviceHandler(r, deviceUC)
 	httpDelivery.NewWalletHandler(r, walletUC)
+	httpDelivery.NewCustomerHandler(r, customerUC)
 
 	// Test Route yêu cầu đăng nhập
 	api := r.Group("/api/v1")

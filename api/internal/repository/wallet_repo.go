@@ -119,6 +119,15 @@ func (r *walletRepository) HasOrderTransactions(ctx context.Context, orderID str
 	return count > 0, err
 }
 
+func (r *walletRepository) HasOrderReturnTransaction(ctx context.Context, orderID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&domain.WalletTransaction{}).
+		Where("order_id = ? AND type = ?", orderID, domain.WalletTxReturnFee).
+		Count(&count).Error
+	return count > 0, err
+}
+
 func (r *walletRepository) ListSettlements(ctx context.Context, shopID string) ([]*domain.Settlement, error) {
 	var settlements []*domain.Settlement
 	query := r.db.WithContext(ctx)

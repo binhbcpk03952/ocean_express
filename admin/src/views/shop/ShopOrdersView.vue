@@ -52,16 +52,17 @@
               <th class="px-5 py-3 font-medium">Người nhận</th>
               <th class="px-5 py-3 font-medium">COD / Phí</th>
               <th class="px-5 py-3 font-medium">Trạng thái</th>
+              <th class="px-5 py-3 font-medium text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="loading">
               <tr v-for="i in 6" :key="i" class="border-t">
-                <td v-for="c in 4" :key="c" class="px-5 py-4"><div class="skeleton h-4 w-full"></div></td>
+                <td v-for="c in 5" :key="c" class="px-5 py-4"><div class="skeleton h-4 w-full"></div></td>
               </tr>
             </template>
             <tr v-else-if="filteredOrders.length === 0">
-              <td colspan="4" class="px-5 py-16 text-center">
+              <td colspan="5" class="px-5 py-16 text-center">
                 <PackageX class="w-10 h-10 mx-auto text-meta/40 mb-3" />
                 <p class="text-meta text-sm">{{ orders.length === 0 ? 'Chưa có vận đơn nào. Tạo đơn đầu tiên nhé.' : 'Không tìm thấy đơn khớp bộ lọc.' }}</p>
               </td>
@@ -79,6 +80,16 @@
                 <div class="text-meta text-xs tabular">Phí: {{ formatMoney(order.shipping_fee) }}đ</div>
               </td>
               <td class="px-5 py-4"><StatusBadge :status="order.status" /></td>
+              <td class="px-5 py-4 text-right">
+                <button
+                  @click="printOrderPDF(order.id)"
+                  class="inline-flex items-center gap-1 px-3 py-1.5 bg-subtle hover:bg-subtle-hover text-strong text-xs font-medium rounded-md border border-[var(--border)] transition-colors"
+                  title="In vận đơn PDF"
+                >
+                  <Printer class="w-3.5 h-3.5 text-primary" />
+                  <span>In VĐ</span>
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -107,12 +118,14 @@ import { ref, onMounted, computed } from 'vue';
 import api from '../../services/api';
 import { useToastStore } from '../../stores/toastStore';
 import { STATUS_ORDER, statusConfig } from '../../composables/useStatus';
-import { RefreshCw, Search, Plus, PackageX } from 'lucide-vue-next';
+import { RefreshCw, Search, Plus, PackageX, Printer } from 'lucide-vue-next';
+import { usePdfPrint } from '../../composables/usePdfPrint';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import BaseButton from '../../components/ui/BaseButton.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 
 const toast = useToastStore();
+const { printOrderPDF } = usePdfPrint();
 
 const orders = ref([]);
 const loading = ref(true);

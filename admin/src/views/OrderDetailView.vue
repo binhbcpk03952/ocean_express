@@ -11,6 +11,9 @@
             <span class="font-mono">{{ order?.tracking_number || '—' }}</span>
           </h1>
           <StatusBadge v-if="order" :status="order.status" />
+          <div v-if="order && isSlaBreached(order)" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 border border-red-200">
+            <AlertCircle class="w-3.5 h-3.5" /> QUÁ HẠN SLA
+          </div>
         </div>
       </div>
       <BaseButton v-if="order" variant="secondary" size="sm" @click="printLabel">
@@ -72,6 +75,19 @@
             </div>
           </div>
         </BaseCard>
+
+        <BaseCard v-if="order.delivery_attempts > 0" title="Giao hàng thất bại" class="border-orange-200 bg-orange-50/50">
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-meta">Số lần thử:</span>
+              <span class="font-bold text-orange-600">{{ order.delivery_attempts }} lần</span>
+            </div>
+            <div class="flex justify-between flex-col gap-1" v-if="order.failure_reason">
+              <span class="text-meta">Lý do gần nhất:</span>
+              <span class="text-strong bg-white p-2 border border-orange-100 rounded">{{ order.failure_reason }}</span>
+            </div>
+          </div>
+        </BaseCard>
       </div>
 
       <!-- Cột bản đồ + timeline -->
@@ -129,7 +145,7 @@ import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import { statusColor } from '../composables/useStatus';
 import {
-  ArrowLeft, User, MapPin, Weight, Wallet, Receipt, Clock, UserCircle, PackageX, Printer
+  ArrowLeft, User, MapPin, Weight, Wallet, Receipt, Clock, UserCircle, PackageX, Printer, AlertCircle
 } from 'lucide-vue-next';
 import BaseCard from '../components/ui/BaseCard.vue';
 import BaseButton from '../components/ui/BaseButton.vue';
@@ -191,6 +207,12 @@ const formatDate = (s) => {
   return new Date(s).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 const shortId = (id) => (id ? id.slice(0, 8) : '');
+
+const isSlaBreached = (o) => {
+  if (!o.sla_deadline) return false;
+  if (['delivered', 'returned'].includes(o.status)) return false;
+  return new Date(o.sla_deadline) < new Date();
+};
 </script>
 
 <style scoped>

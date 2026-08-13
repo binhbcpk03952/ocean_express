@@ -9,6 +9,7 @@ import (
 const (
 	WalletTxCodCredit = "cod_credit" // +COD thu hộ khi đơn delivered
 	WalletTxFeeDebit  = "fee_debit"  // -cước vận chuyển
+	WalletTxReturnFee = "return_fee" // -phí hoàn hàng
 )
 
 // Trạng thái phiên chi trả.
@@ -57,6 +58,7 @@ type WalletRepository interface {
 	// HasOrderTransactions cho biết đơn đã có bút toán ví chưa (phục vụ idempotency
 	// khi ghi nhận COD lúc delivered — tránh ghi trùng nếu gọi lại).
 	HasOrderTransactions(ctx context.Context, orderID string) (bool, error)
+	HasOrderReturnTransaction(ctx context.Context, orderID string) (bool, error)
 	// ListTransactions liệt kê bút toán của shop (mới nhất trước).
 	ListTransactions(ctx context.Context, shopID string) ([]*WalletTransaction, error)
 	// AvailableBalance tính tổng bút toán CHƯA đối soát (settlement_id IS NULL) của shop.
@@ -76,6 +78,7 @@ type WalletUseCase interface {
 	// RecordCOD ghi 2 bút toán khi đơn giao thành công: +COD và -cước.
 	// Idempotent theo order: nếu đơn đã ghi nhận rồi thì bỏ qua.
 	RecordCOD(ctx context.Context, order *ShippingOrder) error
+	RecordReturnFee(ctx context.Context, order *ShippingOrder) error
 	// GetWallet trả về số dư khả dụng + lịch sử bút toán của shop.
 	GetWallet(ctx context.Context, shopID string) (float64, []*WalletTransaction, error)
 	// CreateSettlement (admin) chốt phiên chi trả cho shop.
