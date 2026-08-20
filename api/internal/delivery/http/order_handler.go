@@ -74,11 +74,6 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			publicGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
 			publicGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
-
-		// Hỗ trợ in tem trực tiếp qua /api/v1/orders/:id/pdf và /api/v1/orders/:id/label
-		api.GET("/orders/:id/label", handler.GetOrderLabel)
-		api.GET("/orders/:id/pdf", handler.GetOrderLabel)
-		api.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 	}
 }
 
