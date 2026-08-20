@@ -62,6 +62,8 @@ func main() {
 		"ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)",
 		"ALTER TABLE shops ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'approved'",
 		"ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+		"ALTER TABLE shops ADD COLUMN IF NOT EXISTS latitude DECIMAL(10,8)",
+		"ALTER TABLE shops ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,8)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS ux_shops_email ON shops (email)",
 		// Shop tự đăng ký chưa có webhook_url (set sau trong portal) nên bỏ ràng buộc NOT NULL.
 		"ALTER TABLE shops ALTER COLUMN webhook_url DROP NOT NULL",
@@ -154,6 +156,7 @@ func main() {
 	walletRepo := repository.NewWalletRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
+	notifRepo := repository.NewNotificationRepository(db)
 
 	// Bật kiểm tra session trong AuthRequired middleware
 	middleware.SessionStore = sessionRepo
@@ -188,7 +191,8 @@ func main() {
 	rateUC := usecase.NewRateUseCase(rateRepo)
 	walletUC := usecase.NewWalletUseCase(walletRepo)
 	auditUC := usecase.NewAuditUseCase(auditRepo)
-	orderUC := usecase.NewOrderUseCase(orderRepo, rateUC, shopRepo, hubRepo, locRepo, geocoder, webhookSvc, walletUC, auditUC, webhookDispatcher)
+	notifUseCase := usecase.NewNotificationUseCase(notifRepo)
+	orderUC := usecase.NewOrderUseCase(orderRepo, rateUC, shopRepo, hubRepo, locRepo, geocoder, webhookSvc, walletUC, auditUC, webhookDispatcher, notifUseCase)
 	locUC := usecase.NewLocationUseCase(locRepo)
 	hubUC := usecase.NewHubUseCase(hubRepo, locRepo)
 	shopUC := usecase.NewShopUseCase(shopRepo, sessionRepo, emailSvc)
@@ -249,6 +253,7 @@ func main() {
 	httpDelivery.NewDeviceHandler(r, deviceUC)
 	httpDelivery.NewWalletHandler(r, walletUC)
 	httpDelivery.NewCustomerHandler(r, customerUC)
+	httpDelivery.NewNotificationHandler(r, notifUseCase)
 
 	// Test Route yêu cầu đăng nhập
 	api := r.Group("/api/v1")

@@ -122,6 +122,45 @@
         </BaseButton>
       </template>
     </BaseModal>
+
+    <!-- Modal Giao hàng thất bại -->
+    <BaseModal v-model="showFailModal" title="Báo cáo giao hàng không thành công">
+      <div v-if="selectedOrder" class="space-y-4">
+        <div class="text-xs text-meta">
+          Mã đơn: <span class="font-mono font-bold text-strong">{{ selectedOrder.tracking_number }}</span> · Người nhận: <span class="font-bold text-strong">{{ selectedOrder.receiver_name }}</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-strong mb-1.5">Lý do không giao được *</label>
+          <select
+            v-model="failReason"
+            class="w-full h-10 px-3 bg-surface border rounded-[var(--r-md)] text-sm text-strong outline-none focus:border-[var(--primary)]"
+          >
+            <option value="Khách không nghe máy / Thuê bao">Khách không nghe máy / Thuê bao</option>
+            <option value="Khách hẹn giao lại ngày khác">Khách hẹn giao lại ngày khác</option>
+            <option value="Địa chỉ không rõ / Không tìm thấy người nhận">Địa chỉ không rõ / Không tìm thấy người nhận</option>
+            <option value="Khách từ chối nhận hàng (Hủy đơn)">Khách từ chối nhận hàng (Hủy đơn)</option>
+            <option value="Lý do khác">Lý do khác</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-strong mb-1.5">Ghi chú chi tiết</label>
+          <textarea
+            v-model="failNote"
+            rows="2"
+            placeholder="VD: Gọi 3 cuộc không nghe máy lúc 10h15..."
+            class="w-full p-2.5 bg-surface border rounded-[var(--r-md)] text-xs text-strong outline-none focus:border-[var(--primary)] resize-none"
+          ></textarea>
+        </div>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showFailModal = false">Hủy</BaseButton>
+        <BaseButton variant="danger" :loading="updatingStatus" @click="confirmFailedDelivery">
+          Xác nhận giao thất bại
+        </BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -148,7 +187,10 @@ const statusConfigObj = statusConfig;
 const optimizing = ref(false);
 const submittingCod = ref(false);
 const showCodModal = ref(false);
+const showFailModal = ref(false);
 const selectedOrder = ref(null);
+const failReason = ref('Khách không nghe máy / Thuê bao');
+const failNote = ref('');
 const updatingStatus = ref(false);
 
 const fetchOrders = async () => {
@@ -172,6 +214,11 @@ const handleQuickAction = (order, action) => {
   if (action.to === 'delivered') {
     selectedOrder.value = order;
     showCodModal.value = true;
+  } else if (action.to === 'delivery_failed') {
+    selectedOrder.value = order;
+    failReason.value = 'Khách không nghe máy / Thuê bao';
+    failNote.value = '';
+    showFailModal.value = true;
   } else {
     updateOrderStatus(order.id, action.to);
   }
@@ -188,13 +235,28 @@ const confirmDelivery = async () => {
   }
 };
 
-const updateOrderStatus = async (orderId, newStatus) => {
+const confirmFailedDelivery = async () => {
+  if (!selectedOrder.value) return;
+  updatingStatus.value = true;
   try {
-    await api.put(`/orders/${orderId}/status`, { status: newStatus });
+    await updateOrderStatus(selectedOrder.value.id, 'delivery_failed', failNote.value, failReason.value);
+    showFailModal.value = false;
+  } finally {
+    updatingStatus.value = false;
+  }
+};
+
+const updateOrderStatus = async (orderId, newStatus, note = '', failureReason = '') => {
+  try {
+    await api.put(`/orders/${orderId}/status`, {
+      status: newStatus,
+      note,
+      failure_reason: failureReason
+    });
     toast.success('Đã cập nhật trạng thái đơn hàng');
     fetchOrders();
   } catch (err) {
-    toast.error(err.response?.data?.error || 'Lỗi cập nhật trạng thái');
+    toast.error(err.response?.data?.error?.message || err.response?.data?.error || 'Lỗi cập nhật trạng thái');
   }
 };
 

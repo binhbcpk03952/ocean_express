@@ -92,7 +92,7 @@ func TestCreateOrder(t *testing.T) {
 	shopRepo := &MockShopRepo{}
 	webhookSvc := &MockWebhookService{}
 
-	orderUC := usecase.NewOrderUseCase(orderRepo, rateUC, shopRepo, &MockHubRepo{}, &MockLocationRepo{}, &MockGeocoder{}, webhookSvc, &MockWalletUseCase{}, nil, nil)
+	orderUC := usecase.NewOrderUseCase(orderRepo, rateUC, shopRepo, &MockHubRepo{}, &MockLocationRepo{}, &MockGeocoder{}, webhookSvc, &MockWalletUseCase{}, nil, nil, nil)
 	ctx := context.Background()
 
 	order, err := orderUC.CreateOrder(ctx, "shop-1", "John Doe", "0123456789", "loc-1", "123 Street", 500, 0, 0, 0, 100000, nil, nil, nil, nil)

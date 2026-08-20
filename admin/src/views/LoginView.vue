@@ -103,6 +103,12 @@
           </router-link>
         </div>
 
+        <div class="mt-6 pt-6 border-t text-center">
+          <router-link :to="{ name: 'PublicTracking' }" class="inline-flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline">
+            <span>🔍 Tra cứu hành trình vận đơn công khai →</span>
+          </router-link>
+        </div>
+
         <p class="text-center text-meta text-xs mt-8">
           © 2026 Ocean Express — Core Logistics System
         </p>

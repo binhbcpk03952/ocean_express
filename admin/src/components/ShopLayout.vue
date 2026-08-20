@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="flex min-h-screen bg-base text-body">
     <!-- Sidebar -->
     <aside
@@ -85,13 +85,16 @@
             <p class="text-[12px] text-meta">{{ routeSubtitle }}</p>
           </div>
         </div>
-        <button
-          @click="handleLogout"
-          class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-subtle"
-        >
-          <LogOut class="h-4 w-4" />
-          <span class="hidden sm:inline">Đăng xuất</span>
-        </button>
+        <div class="flex items-center gap-4">
+          <NotificationBell />
+          <button
+            @click="handleLogout"
+            class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-subtle"
+          >
+            <LogOut class="h-4 w-4" />
+            <span class="hidden sm:inline">Đăng xuất</span>
+          </button>
+        </div>
       </header>
 
       <main class="flex-1 p-4 sm:p-6">
@@ -110,6 +113,7 @@ import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import ThemeToggle from './ui/ThemeToggle.vue';
+import NotificationBell from './NotificationBell.vue';
 import {
   Store, LayoutDashboard, PackagePlus, Package, Wallet, UserCircle, LogOut, Menu
 } from 'lucide-vue-next';
@@ -148,6 +152,7 @@ const titleMap = {
   'ShopDashboard': ['Tổng quan', 'Tình hình vận đơn của cửa hàng'],
   'ShopCreateOrder': ['Tạo vận đơn', 'Gửi hàng nhanh chóng'],
   'ShopOrders': ['Quản lý đơn hàng', 'Theo dõi trạng thái và lịch sử'],
+  'ShopOrderDetail': ['Chi tiết vận đơn', 'Xem lộ trình GPS và in tem vận đơn'],
   'ShopWallet': ['Ví & Đối soát', 'Số dư và đối soát tiền thu hộ COD'],
   'ShopAccount': ['Tài khoản & API', 'Hồ sơ, địa chỉ lấy hàng và tích hợp'],
 };

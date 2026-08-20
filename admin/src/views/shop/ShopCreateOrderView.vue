@@ -138,19 +138,30 @@
           <PackageCheck class="w-4 h-4 mt-0.5 shrink-0" />
           <span>Vận đơn đã được tạo và thông tin người nhận đã lưu vào sổ địa chỉ.</span>
         </div>
-        <div class="bg-subtle border rounded-[var(--r-md)] p-3">
-          <div class="text-xs text-meta">Mã vận đơn</div>
-          <div class="font-mono text-base font-semibold text-strong">{{ createdTracking }}</div>
+        <div class="bg-subtle border rounded-[var(--r-md)] p-3 flex items-center justify-between">
+          <div>
+            <div class="text-xs text-meta">Mã vận đơn</div>
+            <div class="font-mono text-base font-bold text-primary">{{ createdTracking }}</div>
+          </div>
+          <router-link :to="{ name: 'ShopOrderDetail', params: { id: createdOrderId } }">
+            <BaseButton variant="ghost" size="sm">Chi tiết →</BaseButton>
+          </router-link>
         </div>
       </div>
       <template #footer>
-        <BaseButton variant="secondary" @click="printOrderPDF(createdOrderId)">
+        <BaseButton variant="primary" @click="showPrintModal = true">
           <Printer class="w-4 h-4" /> In Vận Đơn Ngay
         </BaseButton>
         <BaseButton variant="secondary" @click="createAnother">Tạo đơn khác</BaseButton>
-        <BaseButton variant="primary" @click="goToOrders">Xem danh sách đơn</BaseButton>
+        <BaseButton variant="secondary" @click="goToOrders">Xem danh sách</BaseButton>
       </template>
     </BaseModal>
+
+    <!-- Shipping Label Modal -->
+    <ShippingLabelModal
+      v-model="showPrintModal"
+      :order="createdOrderObj"
+    />
   </div>
 </template>
 
@@ -160,17 +171,16 @@ import { useRouter } from 'vue-router';
 import api from '../../services/api';
 import { useToastStore } from '../../stores/toastStore';
 import { ArrowLeft, Calculator, PackageCheck, Printer } from 'lucide-vue-next';
-import { usePdfPrint } from '../../composables/usePdfPrint';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import BaseButton from '../../components/ui/BaseButton.vue';
 import BaseModal from '../../components/ui/BaseModal.vue';
 import FormField from '../../components/ui/FormField.vue';
 import LocationCascader from '../../components/ui/LocationCascader.vue';
 import LocationPickerMap from '../../components/LocationPickerMap.vue';
+import ShippingLabelModal from '../../components/ShippingLabelModal.vue';
 
 const router = useRouter();
 const toast = useToastStore();
-const { printOrderPDF } = usePdfPrint();
 
 const emptyForm = () => ({
   receiver_name: '',
@@ -192,6 +202,8 @@ const submitting = ref(false);
 const showSuccess = ref(false);
 const createdTracking = ref('');
 const createdOrderId = ref('');
+const createdOrderObj = ref(null);
+const showPrintModal = ref(false);
 
 const customerSuggestions = ref([]);
 let searchTimeout = null;
@@ -301,6 +313,7 @@ const submit = async () => {
     if (res.success) {
       createdTracking.value = res.data.tracking_number;
       createdOrderId.value = res.data.id;
+      createdOrderObj.value = res.data;
       showSuccess.value = true;
     }
   } catch (error) {

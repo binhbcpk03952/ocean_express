@@ -92,6 +92,7 @@ const routes = [
       { path: '', name: 'ShopDashboard', component: () => import('../views/shop/ShopDashboardView.vue') },
       { path: 'orders/new', name: 'ShopCreateOrder', component: () => import('../views/shop/ShopCreateOrderView.vue') },
       { path: 'orders', name: 'ShopOrders', component: () => import('../views/shop/ShopOrdersView.vue') },
+      { path: 'orders/:id', name: 'ShopOrderDetail', component: () => import('../views/shop/ShopOrderDetailView.vue') },
       { path: 'wallet', name: 'ShopWallet', component: () => import('../views/shop/ShopWalletView.vue') },
       { path: 'account', name: 'ShopAccount', component: () => import('../views/shop/ShopAccountView.vue') },
     ]

@@ -77,7 +77,7 @@ type RegisterEmployeeRequest struct {
 func (h *EmployeeHandler) Register(c *gin.Context) {
 	var req RegisterEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dữ liệu không hợp lệ"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 

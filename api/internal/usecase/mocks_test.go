@@ -81,6 +81,14 @@ func (m *MockWalletUseCase) RecordCOD(ctx context.Context, order *domain.Shippin
 	return nil
 }
 
+func (m *MockWalletUseCase) RecordReturnFee(ctx context.Context, order *domain.ShippingOrder) error {
+	if m.RecordErr != nil {
+		return m.RecordErr
+	}
+	m.RecordedOrders = append(m.RecordedOrders, order)
+	return nil
+}
+
 func (m *MockWalletUseCase) GetWallet(ctx context.Context, shopID string) (float64, []*domain.WalletTransaction, error) {
 	return 0, nil, nil
 }

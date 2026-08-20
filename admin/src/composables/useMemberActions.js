@@ -11,8 +11,12 @@ const ACTIONS = {
       { to: 'returned', label: 'Không lấy được hàng / Báo hủy', variant: 'danger' }
     ],
     picked_up: [
+      { to: 'hub_inbound', label: 'Bàn giao nhập kho Hub', variant: 'primary' },
       { to: 'returned', label: 'Báo sự cố / Trả hàng', variant: 'danger' }
     ],
+    returning: [
+      { to: 'return_hub', label: 'Bàn giao kho hoàn', variant: 'primary' }
+    ]
   },
   hub_staff: {
     picked_up: [{ to: 'hub_inbound', label: 'Nhập kho (Inbound)', variant: 'primary' }],
@@ -21,17 +25,31 @@ const ACTIONS = {
       { to: 'hub_outbound', label: 'Xuất kho giao Last-mile', variant: 'primary' },
       { to: 'in_transit', label: 'Chuyển tiếp sang Hub khác', variant: 'secondary' },
     ],
+    returning: [
+      { to: 'return_hub', label: 'Nhập kho hàng hoàn', variant: 'primary' }
+    ],
+    return_hub: [
+      { to: 'returned', label: 'Xác nhận đã trả hàng cho Shop', variant: 'primary' }
+    ]
   },
   last_mile_driver: {
     hub_outbound: [{ to: 'delivering', label: 'Nhận đơn đi giao', variant: 'primary' }],
     delivering: [
-      { to: 'delivered', label: 'Giao thành công', variant: 'primary' },
-      { to: 'returned', label: 'Giao thất bại / Hoàn hàng', variant: 'danger' },
+      { to: 'delivered', label: 'Giao thành công (Thu COD)', variant: 'primary' },
+      { to: 'delivery_failed', label: 'Giao thất bại / Khách hẹn lại', variant: 'danger' },
       { to: 'hub_inbound', label: 'Giao lại về kho', variant: 'secondary' }
     ],
+    delivery_failed: [
+      { to: 'delivering', label: 'Tiến hành phát lại', variant: 'primary' },
+      { to: 'return_requested', label: 'Yêu cầu chuyển hoàn', variant: 'danger' }
+    ],
+    return_requested: [
+      { to: 'returning', label: 'Vận chuyển về Hub hoàn hàng', variant: 'primary' }
+    ]
   },
 };
 
 export function actionsFor(role, status) {
   return ACTIONS[role]?.[status] || [];
 }
+

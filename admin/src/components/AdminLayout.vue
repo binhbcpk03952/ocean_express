@@ -89,13 +89,16 @@
             <p class="text-[12px] text-meta">{{ routeSubtitle }}</p>
           </div>
         </div>
-        <button
-          @click="handleLogout"
-          class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-subtle"
-        >
-          <LogOut class="h-4 w-4" />
-          <span class="hidden sm:inline">Đăng xuất</span>
-        </button>
+        <div class="flex items-center gap-4">
+          <NotificationBell />
+          <button
+            @click="handleLogout"
+            class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-subtle"
+          >
+            <LogOut class="h-4 w-4" />
+            <span class="hidden sm:inline">Đăng xuất</span>
+          </button>
+        </div>
       </header>
 
       <main class="flex-1 p-4 sm:p-6">
@@ -114,6 +117,7 @@ import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import ThemeToggle from './ui/ThemeToggle.vue';
+import NotificationBell from './NotificationBell.vue';
 import {
   LayoutDashboard, Package, MapPin, DollarSign, Store, Users, Menu, LogOut, ClipboardCheck, Wallet,
 } from 'lucide-vue-next';

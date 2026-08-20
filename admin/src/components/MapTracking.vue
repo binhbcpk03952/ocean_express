@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { Truck } from 'lucide-vue-next';
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -82,6 +82,7 @@ const props = defineProps({
   }
 });
 
+const map = ref(null);
 const zoom = ref(5);
 const center = ref([16.047079, 108.206230]);
 
@@ -136,14 +137,25 @@ const currentIdx = computed(() => {
   return 0;
 });
 
+const refreshMapSize = () => {
+  nextTick(() => {
+    setTimeout(() => {
+      if (map.value?.leafletObject) {
+        map.value.leafletObject.invalidateSize();
+      }
+    }, 200);
+  });
+};
+
 onMounted(() => {
   if (routePoints.value.length > 0) {
-    // Zoom vào điểm hiện tại thay vì luôn zoom vào điểm cuối cùng
     const idx = currentIdx.value !== -1 ? currentIdx.value : 0;
     const current = routePoints.value[idx];
     center.value = [current.latitude, current.longitude];
     zoom.value = 12;
   }
+  refreshMapSize();
+  window.addEventListener('resize', refreshMapSize);
 });
 
 // Mảng [lat, lng] cho polyline nối các điểm theo trình tự hành trình (đường chim bay cơ bản).

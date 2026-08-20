@@ -55,7 +55,7 @@
             <router-link
               v-for="order in recentOrders"
               :key="order.id"
-              :to="{ name: 'ShopOrders' }"
+              :to="{ name: 'ShopOrderDetail', params: { id: order.id } }"
               class="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-subtle"
             >
               <div class="min-w-0 flex-1">

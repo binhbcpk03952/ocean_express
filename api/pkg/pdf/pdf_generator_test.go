@@ -18,8 +18,17 @@ func sampleOrder() *domain.ShippingOrder {
 	}
 }
 
+func sampleShop() *domain.Shop {
+	phone := "0909090909"
+	return &domain.Shop{
+		Name:          "Shop Thời Trang Biển",
+		Phone:         &phone,
+		AddressDetail: "Số 10 Đường Hoàng Diệu, Quận Hải Châu, Đà Nẵng",
+	}
+}
+
 func TestGenerateOrderLabelPDF(t *testing.T) {
-	got, err := GenerateOrderLabelPDF(sampleOrder())
+	got, err := GenerateOrderLabelPDF(sampleOrder(), sampleShop())
 	if err != nil {
 		t.Fatalf("GenerateOrderLabelPDF() error = %v", err)
 	}
@@ -31,9 +40,29 @@ func TestGenerateOrderLabelPDF(t *testing.T) {
 	}
 }
 
+func TestGenerateBatchOrderLabelsPDF(t *testing.T) {
+	orders := []*domain.ShippingOrder{
+		sampleOrder(),
+		{TrackingNumber: "OCEAN-BATCH-2", ReceiverName: "Khách 2", ReceiverPhone: "0999888777", Weight: 800, CodAmount: 150000},
+	}
+	shopMap := map[string]*domain.Shop{
+		sampleOrder().ShopID: sampleShop(),
+	}
+	got, err := GenerateBatchOrderLabelsPDF(orders, shopMap)
+	if err != nil {
+		t.Fatalf("GenerateBatchOrderLabelsPDF() error = %v", err)
+	}
+	if !bytes.HasPrefix(got, []byte("%PDF-")) {
+		t.Errorf("kết quả batch không phải PDF hợp lệ")
+	}
+	if len(got) < 2000 {
+		t.Errorf("PDF batch quá nhỏ (%d byte)", len(got))
+	}
+}
+
 // Các trường rỗng/zero không được làm hàm panic hoặc trả lỗi.
 func TestGenerateOrderLabelPDF_EmptyFields(t *testing.T) {
-	if _, err := GenerateOrderLabelPDF(&domain.ShippingOrder{TrackingNumber: "OCEAN-0"}); err != nil {
+	if _, err := GenerateOrderLabelPDF(&domain.ShippingOrder{TrackingNumber: "OCEAN-0"}, nil); err != nil {
 		t.Fatalf("đơn hàng rỗng gây lỗi: %v", err)
 	}
 }
@@ -46,7 +75,7 @@ func TestGenerateOrderLabelPDF_LongFields(t *testing.T) {
 	o.ReceiverAddressDetail = "Số 123 ngách 45 ngõ 67 đường Nguyễn Văn Cừ, Tổ dân phố Thượng Đình, " +
 		"Phường Khương Trung, Quận Thanh Xuân, Thành phố Hà Nội, Việt Nam"
 	o.CodAmount = 12500000
-	if _, err := GenerateOrderLabelPDF(o); err != nil {
+	if _, err := GenerateOrderLabelPDF(o, sampleShop()); err != nil {
 		t.Fatalf("đơn hàng có trường dài gây lỗi: %v", err)
 	}
 }
@@ -59,7 +88,7 @@ func TestWrapTextBreaksOnWordBoundary(t *testing.T) {
 	}
 	pdf.SetFont(fontRegular, "", 10)
 
-	const addr = "Cây xăng Quảng Tân, Xã Hải Trạch, Huyện Bố Trạch, Tỉnh Quảng Bình"
+	const addr = "Cây xăng Quảng Tân, Thôn Hải Đông, Xã Hải Trạch, Huyện Bố Trạch, Tỉnh Quảng Bình, Việt Nam"
 	lines := wrapText(pdf, addr, textW, 3)
 	if len(lines) < 2 {
 		t.Fatalf("mong đợi địa chỉ bị ngắt thành nhiều dòng, nhận được %d", len(lines))

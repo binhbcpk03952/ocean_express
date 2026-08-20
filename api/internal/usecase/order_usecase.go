@@ -21,11 +21,12 @@ type orderUseCase struct {
 	geocoder          geocoding.Geocoder
 	webhookSvc        domain.WebhookService
 	walletUC          domain.WalletUseCase
-	auditUC           domain.AuditUseCase
 	webhookDispatcher domain.WebhookDispatcher
+	notifUC           domain.NotificationUseCase
+	auditUC           domain.AuditUseCase
 }
 
-func NewOrderUseCase(orderRepo domain.OrderRepository, rateUC domain.RateUseCase, shopRepo domain.ShopRepository, hubRepo domain.HubRepository, locRepo domain.LocationRepository, geocoder geocoding.Geocoder, webhookSvc domain.WebhookService, walletUC domain.WalletUseCase, auditUC domain.AuditUseCase, webhookDispatcher domain.WebhookDispatcher) domain.OrderUseCase {
+func NewOrderUseCase(orderRepo domain.OrderRepository, rateUC domain.RateUseCase, shopRepo domain.ShopRepository, hubRepo domain.HubRepository, locRepo domain.LocationRepository, geocoder geocoding.Geocoder, webhookSvc domain.WebhookService, walletUC domain.WalletUseCase, auditUC domain.AuditUseCase, webhookDispatcher domain.WebhookDispatcher, notifUC domain.NotificationUseCase) domain.OrderUseCase {
 	return &orderUseCase{
 		orderRepo:         orderRepo,
 		rateUC:            rateUC,
@@ -37,6 +38,7 @@ func NewOrderUseCase(orderRepo domain.OrderRepository, rateUC domain.RateUseCase
 		walletUC:          walletUC,
 		auditUC:           auditUC,
 		webhookDispatcher: webhookDispatcher,
+		notifUC:           notifUC,
 	}
 }
 
@@ -236,13 +238,13 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 	if employeeRole != "admin" {
 		allowedRoles := map[string][]string{
 			"picked_up":        {"first_mile_driver"},
-			"hub_inbound":      {"hub_staff"},
+			"hub_inbound":      {"hub_staff", "first_mile_driver", "last_mile_driver"},
 			"hub_outbound":     {"hub_staff"},
 			"in_transit":       {"hub_staff"},
 			"delivering":       {"last_mile_driver"},
 			"delivery_failed":  {"last_mile_driver"},
 			"return_requested": {"last_mile_driver", "admin"},
-			"returning":        {"last_mile_driver", "first_mile_driver"},
+			"returning":        {"last_mile_driver", "first_mile_driver", "hub_staff"},
 			"return_hub":       {"hub_staff"},
 			"delivered":        {"last_mile_driver"},
 			"returned":         {"first_mile_driver", "last_mile_driver", "hub_staff"},
@@ -358,6 +360,11 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 				Note:           note,
 			})
 		}
+		if u.notifUC != nil {
+			title := fmt.Sprintf("Đơn hàng %s thay đổi trạng thái", order.TrackingNumber)
+			message := fmt.Sprintf("Trạng thái mới: %s. %s", order.Status, note)
+			_ = u.notifUC.CreateNotification(ctx, shop.ID, title, message, "order_update")
+		}
 	}
 
 	return nil
@@ -382,8 +389,16 @@ func (u *orderUseCase) GetOrders(ctx context.Context, role, employeeID, hubID st
 
 func (u *orderUseCase) GetOrderDetails(ctx context.Context, id string) (*domain.ShippingOrder, []*domain.TrackingLog, error) {
 	order, err := u.orderRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, nil, err
+	if err != nil || order == nil {
+		// Fallback: nếu id truyền vào là tracking_number (dạng OE-...)
+		var errTracking error
+		order, errTracking = u.orderRepo.GetByTrackingNumber(ctx, id)
+		if errTracking != nil || order == nil {
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, errTracking
+		}
 	}
 	logs, err := u.orderRepo.GetOrderLogs(ctx, order.ID)
 	if err != nil {

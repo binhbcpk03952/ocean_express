@@ -172,7 +172,7 @@
                   </h5>
                   <div class="flex items-center gap-2 mb-2">
                     <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
-                    <code class="text-sky-300 text-sm font-mono">/api/v1/shops/rates/calculate</code>
+                    <code class="text-sky-300 text-sm font-mono">/api/v1/rates/calculate</code>
                   </div>
                   <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800">{
   "receiver_location_id": "VN-01", 
@@ -187,7 +187,7 @@
                   </h5>
                   <div class="flex items-center gap-2 mb-2">
                     <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
-                    <code class="text-sky-300 text-sm font-mono">/api/v1/shops/orders</code>
+                    <code class="text-sky-300 text-sm font-mono">/api/v1/orders</code>
                   </div>
                   <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800">{
   "receiver_name": "Nguyễn Văn A",
@@ -195,15 +195,36 @@
   "receiver_location_id": "VN-01",
   "receiver_address_detail": "123 Đường Cầu Giấy",
   "weight": 1500,
+  "length": 20,
+  "width": 15,
+  "height": 10,
   "cod_amount": 350000
 }</pre>
                   <p class="text-sm mt-3 text-emerald-400">Response trả về sẽ kèm theo <code>tracking_number</code> (Mã vận đơn) và <code>shipping_fee</code> (Phí vận chuyển tự động).</p>
                 </div>
 
-                <!-- 5. Webhook -->
+                <!-- 5. In Tem Vận Đơn & Tra Cứu -->
                 <div>
                   <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">05.</span> Nhận trạng thái tự động (Webhook)
+                    <span class="text-sky-400 text-sm">05.</span> In Tem Vận Đơn & Tra Cứu
+                  </h5>
+                  <p class="text-sm mb-3">Tải trực tiếp file PDF tem in nhiệt chuẩn A6/A5 hoặc xuất PDF hàng loạt:</p>
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                      <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">GET</span>
+                      <code class="text-sky-300 text-sm font-mono">/api/v1/orders/{order_id}/pdf</code>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
+                      <code class="text-sky-300 text-sm font-mono">/api/v1/orders/labels/batch</code>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 6. Webhook -->
+                <div>
+                  <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                    <span class="text-sky-400 text-sm">06.</span> Nhận trạng thái tự động (Webhook)
                   </h5>
                   <p class="text-sm mb-3">Tại mục <strong>Tài khoản</strong>, cập nhật <code>Webhook URL</code> của hệ thống bạn. Khi trạng thái đơn thay đổi (Vd: Giao thành công), Ocean Express sẽ POST dữ liệu cập nhật về URL đó ngay lập tức.</p>
                 </div>

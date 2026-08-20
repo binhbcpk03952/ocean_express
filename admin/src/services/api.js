@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   // Đọc từ .env (VITE_API_BASE_URL); fallback về localhost cho môi trường dev.
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/v1',
   timeout: 10000,
 });
 

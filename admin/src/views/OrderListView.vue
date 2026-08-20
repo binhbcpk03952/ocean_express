@@ -17,6 +17,35 @@
       </div>
     </div>
 
+    <!-- Floating Batch Action Bar -->
+    <div
+      v-if="selectedOrderIds.length > 0"
+      class="bg-blue-900 text-white rounded-[var(--r-md)] p-3 px-5 shadow-lg flex items-center justify-between gap-4 animate-fade-in"
+    >
+      <div class="flex items-center gap-2 text-sm font-semibold">
+        <CheckSquare class="w-4 h-4 text-teal-300" />
+        <span>Đã chọn <strong class="text-teal-300">{{ selectedOrderIds.length }}</strong> vận đơn</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          @click="openBatchPrintModal"
+          class="px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-900 font-bold text-xs rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+        >
+          <Printer class="w-4 h-4" />
+          <span>In Hàng Loạt ({{ selectedOrderIds.length }} tem)</span>
+        </button>
+        <button
+          type="button"
+          @click="clearSelection"
+          class="text-xs text-sky-200 hover:text-white underline cursor-pointer"
+        >
+          Bỏ chọn
+        </button>
+      </div>
+    </div>
+
     <BaseCard body-class="">
       <!-- Toolbar -->
       <div class="p-4 border-b flex flex-wrap items-center gap-3">
@@ -53,6 +82,15 @@
         <table class="w-full text-left text-sm">
           <thead>
             <tr class="bg-subtle text-meta text-[12px] uppercase tracking-wide">
+              <th class="px-4 py-3 w-10 text-center">
+                <input
+                  type="checkbox"
+                  :checked="isAllSelected"
+                  :indeterminate="isIndeterminate"
+                  @change="toggleSelectAll"
+                  class="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                />
+              </th>
               <th class="px-5 py-3 font-medium">Mã vận đơn</th>
               <th class="px-5 py-3 font-medium">Người nhận</th>
               <th class="px-5 py-3 font-medium">COD / Phí</th>
@@ -63,11 +101,11 @@
           <tbody>
             <template v-if="loading">
               <tr v-for="i in 6" :key="i" class="border-t">
-                <td v-for="c in 5" :key="c" class="px-5 py-4"><div class="skeleton h-4 w-full"></div></td>
+                <td v-for="c in 6" :key="c" class="px-5 py-4"><div class="skeleton h-4 w-full"></div></td>
               </tr>
             </template>
             <tr v-else-if="filteredOrders.length === 0">
-              <td colspan="5" class="px-5 py-16 text-center">
+              <td colspan="6" class="px-5 py-16 text-center">
                 <PackageX class="w-10 h-10 mx-auto text-meta/40 mb-3" />
                 <p class="text-meta text-sm">{{ orders.length === 0 ? 'Chưa có vận đơn nào.' : 'Không tìm thấy vận đơn khớp bộ lọc.' }}</p>
               </td>
@@ -78,8 +116,18 @@
               :key="order.id"
               class="border-t hover:bg-subtle transition-colors"
             >
+              <td class="px-4 py-4 text-center" @click.stop>
+                <input
+                  type="checkbox"
+                  :value="order.id"
+                  v-model="selectedOrderIds"
+                  class="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                />
+              </td>
               <td class="px-5 py-4">
-                <span class="font-mono text-[13px] font-medium text-strong">{{ order.tracking_number }}</span>
+                <router-link :to="`/orders/${order.id}`" class="font-mono text-[13px] font-bold text-primary hover:underline">
+                  {{ order.tracking_number }}
+                </router-link>
               </td>
               <td class="px-5 py-4">
                 <div class="font-medium text-strong">{{ order.receiver_name }}</div>
@@ -99,15 +147,23 @@
                 </div>
               </td>
               <td class="px-5 py-4">
-                <div class="flex items-center justify-end gap-2">
+                <div class="flex items-center justify-end gap-1.5" @click.stop>
                   <router-link :to="`/orders/${order.id}`">
-                    <BaseButton variant="ghost" size="sm"><Eye class="w-4 h-4" /> Chi tiết</BaseButton>
+                    <BaseButton variant="ghost" size="sm" title="Chi tiết"><Eye class="w-4 h-4" /></BaseButton>
                   </router-link>
-                  <BaseButton v-if="canAssign(order)" variant="secondary" size="sm" @click="openAssignModal(order)">
-                    <UserPlus class="w-4 h-4" /> Phân công
+                  <button
+                    @click="openSinglePrintModal(order)"
+                    class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-subtle hover:bg-subtle-hover text-strong text-xs font-semibold rounded-md border transition-colors cursor-pointer"
+                    title="In tem vận đơn"
+                  >
+                    <Printer class="w-3.5 h-3.5 text-primary" />
+                    <span>In Tem</span>
+                  </button>
+                  <BaseButton v-if="canAssign(order)" variant="secondary" size="sm" @click="openAssignModal(order)" title="Phân công">
+                    <UserPlus class="w-4 h-4" />
                   </BaseButton>
-                  <BaseButton v-if="canUpdateStatus(order)" variant="secondary" size="sm" @click="openStatusModal(order)">
-                    <PencilLine class="w-4 h-4" /> Cập nhật
+                  <BaseButton v-if="canUpdateStatus(order)" variant="secondary" size="sm" @click="openStatusModal(order)" title="Cập nhật">
+                    <PencilLine class="w-4 h-4" />
                   </BaseButton>
                 </div>
               </td>
@@ -176,6 +232,13 @@
         <BaseButton variant="primary" :loading="isAssigning" @click="assignOrder" :disabled="!assignForm.shipper_id">Phân công</BaseButton>
       </template>
     </BaseModal>
+
+    <!-- Shipping Label Modal -->
+    <ShippingLabelModal
+      v-model="showPrintModal"
+      :order="selectedOrderForPrint"
+      :orders="selectedOrdersList"
+    />
   </div>
 </template>
 
@@ -185,12 +248,13 @@ import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { STATUS_ORDER, statusConfig } from '../composables/useStatus';
-import { RefreshCw, Search, Eye, PencilLine, PackageX, Upload, AlertCircle, UserPlus } from 'lucide-vue-next';
+import { RefreshCw, Search, Eye, PencilLine, PackageX, Upload, AlertCircle, UserPlus, Printer, CheckSquare } from 'lucide-vue-next';
 import BaseCard from '../components/ui/BaseCard.vue';
 import BaseButton from '../components/ui/BaseButton.vue';
 import BaseModal from '../components/ui/BaseModal.vue';
 import FormSelect from '../components/ui/FormSelect.vue';
 import StatusBadge from '../components/ui/StatusBadge.vue';
+import ShippingLabelModal from '../components/ShippingLabelModal.vue';
 
 const authStore = useAuthStore();
 const toast = useToastStore();
@@ -202,6 +266,11 @@ const statusFilter = ref('');
 const page = ref(1);
 const limit = ref(10);
 const totalPages = ref(1);
+
+const selectedOrderIds = ref([]);
+const showPrintModal = ref(false);
+const selectedOrderForPrint = ref(null);
+const selectedOrdersList = ref([]);
 
 const showModal = ref(false);
 const isUpdating = ref(false);
@@ -293,6 +362,42 @@ const filteredOrders = computed(() => {
     );
   });
 });
+
+const isAllSelected = computed(() => {
+  if (filteredOrders.value.length === 0) return false;
+  return filteredOrders.value.every(o => selectedOrderIds.value.includes(o.id));
+});
+
+const isIndeterminate = computed(() => {
+  const count = selectedOrderIds.value.length;
+  return count > 0 && !isAllSelected.value;
+});
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedOrderIds.value = [];
+  } else {
+    selectedOrderIds.value = filteredOrders.value.map(o => o.id);
+  }
+};
+
+const clearSelection = () => {
+  selectedOrderIds.value = [];
+};
+
+const openSinglePrintModal = (order) => {
+  selectedOrderForPrint.value = order;
+  selectedOrdersList.value = [order];
+  showPrintModal.value = true;
+};
+
+const openBatchPrintModal = () => {
+  const list = orders.value.filter(o => selectedOrderIds.value.includes(o.id));
+  if (list.length === 0) return;
+  selectedOrderForPrint.value = null;
+  selectedOrdersList.value = list;
+  showPrintModal.value = true;
+};
 
 const isSlaBreached = (order) => {
   if (!order.sla_deadline) return false;

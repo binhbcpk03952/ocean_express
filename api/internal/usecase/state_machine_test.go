@@ -35,6 +35,7 @@ func newOrderUC(orderRepo *MockOrderRepo) domain.OrderUseCase {
 		&MockWalletUseCase{},
 		nil,
 		nil,
+		nil,
 	)
 }
 
@@ -58,7 +59,7 @@ func TestUpdateStatus_ValidTransitions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := seedOrderRepo(tc.from, nil)
 			uc := newOrderUC(repo)
-			err := uc.UpdateOrderStatus(context.Background(), "order-1", tc.to, "", "emp-1", tc.role, "hub-1", 0, 0)
+			err := uc.UpdateOrderStatus(context.Background(), "order-1", tc.to, "", "", "emp-1", tc.role, "hub-1", 0, 0)
 			if tc.wantErr && err == nil {
 				t.Fatalf("mong đợi lỗi nhưng không có")
 			}
@@ -76,7 +77,7 @@ func TestUpdateStatus_InvalidTransitionIsRejected(t *testing.T) {
 	// Không được nhảy thẳng từ ready_to_pick sang delivered (bỏ qua hub).
 	repo := seedOrderRepo("ready_to_pick", nil)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "emp-1", "admin", "", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "", "emp-1", "admin", "", 0, 0)
 	if err == nil {
 		t.Fatal("mong đợi lỗi khi bỏ qua hub, nhưng không có")
 	}
@@ -86,7 +87,7 @@ func TestUpdateStatus_RoleEnforcement(t *testing.T) {
 	// last_mile_driver không được thực hiện thao tác lấy hàng (picked_up).
 	repo := seedOrderRepo("ready_to_pick", nil)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "picked_up", "", "emp-1", "last_mile_driver", "", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "picked_up", "", "", "emp-1", "last_mile_driver", "", 0, 0)
 	if err == nil {
 		t.Fatal("mong đợi last_mile_driver bị chặn khỏi picked_up, nhưng không có lỗi")
 	}
@@ -97,7 +98,7 @@ func TestUpdateStatus_DriverOwnershipGuard(t *testing.T) {
 	otherDriver := "driver-other"
 	repo := seedOrderRepo("delivering", &otherDriver)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "driver-me", "last_mile_driver", "", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "", "driver-me", "last_mile_driver", "", 0, 0)
 	if err == nil {
 		t.Fatal("mong đợi driver bị chặn khỏi đơn của người khác, nhưng không có lỗi")
 	}
@@ -107,7 +108,7 @@ func TestUpdateStatus_HubInboundResetsDriverAndSetsHub(t *testing.T) {
 	firstMile := "driver-first"
 	repo := seedOrderRepo("picked_up", &firstMile)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "hub_inbound", "", "staff-1", "hub_staff", "hub-42", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "hub_inbound", "", "", "staff-1", "hub_staff", "hub-42", 0, 0)
 	if err != nil {
 		t.Fatalf("không mong đợi lỗi, nhận: %v", err)
 	}
@@ -144,7 +145,7 @@ func TestUpdateStatus_InvalidTransitionWrapsSentinel(t *testing.T) {
 	// Nhảy sai luồng (ready_to_pick -> delivered) phải bọc ErrInvalidTransition -> 422.
 	repo := seedOrderRepo("ready_to_pick", nil)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "emp-1", "admin", "", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "", "emp-1", "admin", "", 0, 0)
 	if err == nil {
 		t.Fatal("mong đợi lỗi khi nhảy sai luồng trạng thái")
 	}
@@ -160,7 +161,7 @@ func TestUpdateStatus_WrongRoleWrapsForbidden(t *testing.T) {
 	// last_mile_driver không được thực hiện picked_up -> bọc ErrForbidden -> 403.
 	repo := seedOrderRepo("ready_to_pick", nil)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "picked_up", "", "emp-1", "last_mile_driver", "", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "picked_up", "", "", "emp-1", "last_mile_driver", "", 0, 0)
 	if err == nil {
 		t.Fatal("mong đợi lỗi khi sai role")
 	}
@@ -177,7 +178,7 @@ func TestUpdateStatus_DriverOwnershipWrapsForbidden(t *testing.T) {
 	otherDriver := "driver-other"
 	repo := seedOrderRepo("delivering", &otherDriver)
 	uc := newOrderUC(repo)
-	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "driver-me", "last_mile_driver", "", 0, 0)
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivered", "", "", "driver-me", "last_mile_driver", "", 0, 0)
 	if err == nil {
 		t.Fatal("mong đợi lỗi khi thao tác đơn của người khác")
 	}
@@ -185,3 +186,78 @@ func TestUpdateStatus_DriverOwnershipWrapsForbidden(t *testing.T) {
 		t.Fatalf("mong đợi lỗi bọc ErrForbidden (map 403), nhận: %v", err)
 	}
 }
+
+func TestUpdateStatus_ReturnWorkflow(t *testing.T) {
+	// Kiểm tra chu trình hoàn hàng đầy đủ:
+	// delivering -> delivery_failed -> return_requested -> returning -> return_hub -> returned
+	repo := seedOrderRepo("delivering", nil)
+	repo.SavedOrder.ShippingFee = 40000
+	uc := newOrderUC(repo)
+
+	// 1. Giao thất bại lần 1
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivery_failed", "Khách hẹn lại", "Khách bận", "driver-1", "last_mile_driver", "", 0, 0)
+	if err != nil {
+		t.Fatalf("Lỗi delivery_failed: %v", err)
+	}
+	if repo.SavedOrder.Status != "delivery_failed" || repo.SavedOrder.DeliveryAttempts != 1 {
+		t.Errorf("Mong đợi status=delivery_failed và attempts=1, nhận status=%s, attempts=%d", repo.SavedOrder.Status, repo.SavedOrder.DeliveryAttempts)
+	}
+
+	// 2. Yêu cầu chuyển hoàn
+	err = uc.UpdateOrderStatus(context.Background(), "order-1", "return_requested", "Shop yêu cầu hoàn", "", "driver-1", "last_mile_driver", "", 0, 0)
+	if err != nil {
+		t.Fatalf("Lỗi return_requested: %v", err)
+	}
+	if repo.SavedOrder.Status != "return_requested" {
+		t.Errorf("Mong đợi status=return_requested, nhận %s", repo.SavedOrder.Status)
+	}
+
+	// 3. Đang vận chuyển về Hub hoàn
+	err = uc.UpdateOrderStatus(context.Background(), "order-1", "returning", "Đang chở về kho", "", "driver-1", "last_mile_driver", "", 0, 0)
+	if err != nil {
+		t.Fatalf("Lỗi returning: %v", err)
+	}
+	if repo.SavedOrder.Status != "returning" {
+		t.Errorf("Mong đợi status=returning, nhận %s", repo.SavedOrder.Status)
+	}
+
+	// 4. Nhập kho hoàn hàng
+	err = uc.UpdateOrderStatus(context.Background(), "order-1", "return_hub", "Kho đã nhận hàng hoàn", "", "staff-1", "hub_staff", "hub-1", 0, 0)
+	if err != nil {
+		t.Fatalf("Lỗi return_hub: %v", err)
+	}
+	if repo.SavedOrder.Status != "return_hub" {
+		t.Errorf("Mong đợi status=return_hub, nhận %s", repo.SavedOrder.Status)
+	}
+
+	// 5. Trả hàng hoàn tất cho Shop
+	err = uc.UpdateOrderStatus(context.Background(), "order-1", "returned", "Đã trả hàng cho Shop", "", "staff-1", "hub_staff", "hub-1", 0, 0)
+	if err != nil {
+		t.Fatalf("Lỗi returned: %v", err)
+	}
+	if repo.SavedOrder.Status != "returned" {
+		t.Errorf("Mong đợi status=returned, nhận %s", repo.SavedOrder.Status)
+	}
+	if repo.SavedOrder.ReturnFee != 20000 {
+		t.Errorf("Mong đợi ReturnFee = 20000 (50%% của 40000), nhận %f", repo.SavedOrder.ReturnFee)
+	}
+}
+
+func TestUpdateStatus_AutoReturnAfter3Attempts(t *testing.T) {
+	// Giao thất bại 3 lần -> tự động chuyển sang return_requested
+	repo := seedOrderRepo("delivering", nil)
+	repo.SavedOrder.DeliveryAttempts = 2
+	uc := newOrderUC(repo)
+
+	err := uc.UpdateOrderStatus(context.Background(), "order-1", "delivery_failed", "Lần 3 khách không nhận", "Từ chối", "driver-1", "last_mile_driver", "", 0, 0)
+	if err != nil {
+		t.Fatalf("Lỗi delivery_failed: %v", err)
+	}
+	if repo.SavedOrder.DeliveryAttempts != 3 {
+		t.Errorf("Mong đợi attempts=3, nhận %d", repo.SavedOrder.DeliveryAttempts)
+	}
+	if repo.SavedOrder.Status != "return_requested" {
+		t.Errorf("Mong đợi tự động chuyển sang return_requested sau 3 lần thất bại, nhận %s", repo.SavedOrder.Status)
+	}
+}
+

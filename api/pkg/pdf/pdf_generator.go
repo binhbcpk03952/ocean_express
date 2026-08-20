@@ -9,6 +9,7 @@ import (
 	"ocean-express-api/internal/domain"
 
 	"github.com/signintech/gopdf"
+	"github.com/skip2/go-qrcode"
 )
 
 //go:embed fonts/Roboto-Regular.ttf
@@ -21,12 +22,12 @@ const (
 	fontRegular = "Roboto"
 	fontBold    = "Roboto-Bold"
 
-	// A6 là khổ tem vận đơn tiêu chuẩn (105 x 148 mm).
-	pageW = 297.64
-	pageH = 419.53
+	// A5 là khổ giấy in (148 x 210 mm).
+	pageW = 419.53
+	pageH = 595.28
 
-	margin = 14.0 // ~5mm viền ngoài
-	padX   = 6.0  // đệm trong giữa viền và chữ
+	margin = 20.0 // ~7mm viền ngoài
+	padX   = 8.0  // đệm trong giữa viền và chữ
 
 	textX = margin + padX
 	textW = pageW - 2*(margin+padX)
@@ -36,7 +37,7 @@ const (
 	// Dấu thanh tiếng Việt cần nhiều khoảng trống phía trên hơn chữ Latin.
 	lineFactor = 1.5
 
-	signatureH = 46.0 // chiều cao khối ký nhận neo ở đáy tem
+	signatureH = 70.0 // chiều cao khối ký nhận neo ở đáy tem
 )
 
 // newMeasuringPDF tạo một tài liệu A6 đã nhúng sẵn font, dùng để dựng tem
@@ -56,35 +57,119 @@ func newMeasuringPDF() (*gopdf.GoPdf, error) {
 }
 
 // GenerateOrderLabelPDF sinh ra tệp PDF tem vận đơn dạng byte array.
-func GenerateOrderLabelPDF(order *domain.ShippingOrder) ([]byte, error) {
+func GenerateOrderLabelPDF(order *domain.ShippingOrder, shop *domain.Shop) ([]byte, error) {
 	pdf, err := newMeasuringPDF()
 	if err != nil {
 		return nil, err
 	}
 
+	drawOrderLabel(pdf, order, shop)
+
+	var buf bytes.Buffer
+	if _, err := pdf.WriteTo(&buf); err != nil {
+		return nil, fmt.Errorf("ghi PDF: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// GenerateBatchOrderLabelsPDF sinh ra tệp PDF gồm nhiều tem vận đơn ghép trang.
+func GenerateBatchOrderLabelsPDF(orders []*domain.ShippingOrder, shopMap map[string]*domain.Shop) ([]byte, error) {
+	if len(orders) == 0 {
+		return nil, fmt.Errorf("danh sách vận đơn trống")
+	}
+
+	pdf := &gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{PageSize: gopdf.Rect{W: pageW, H: pageH}})
+
+	if err := pdf.AddTTFFontData(fontRegular, robotoRegular); err != nil {
+		return nil, fmt.Errorf("nhúng font Roboto Regular: %w", err)
+	}
+	if err := pdf.AddTTFFontData(fontBold, robotoBold); err != nil {
+		return nil, fmt.Errorf("nhúng font Roboto Bold: %w", err)
+	}
+
+	for i, order := range orders {
+		if order == nil {
+			continue
+		}
+		if i > 0 {
+			pdf.AddPage()
+		} else {
+			pdf.AddPage()
+		}
+
+		var shop *domain.Shop
+		if shopMap != nil {
+			shop = shopMap[order.ShopID]
+		}
+		drawOrderLabel(pdf, order, shop)
+	}
+
+	var buf bytes.Buffer
+	if _, err := pdf.WriteTo(&buf); err != nil {
+		return nil, fmt.Errorf("ghi PDF batch: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func drawOrderLabel(pdf *gopdf.GoPdf, order *domain.ShippingOrder, shop *domain.Shop) {
 	l := &layout{pdf: pdf}
 
 	// Viền ngoài
 	pdf.SetLineWidth(1)
 	pdf.RectFromUpperLeftWithStyle(margin, margin, pageW-2*margin, pageH-2*margin, "D")
 
-	// ----- Header -----
-	l.y = margin + 6
-	l.centered(fontBold, 18, "OCEAN EXPRESS")
-	l.centered(fontBold, 16, order.TrackingNumber)
-	// Giả lập vạch barcode bằng text
-	l.centered(fontRegular, 11, "* "+order.TrackingNumber+" *")
+	qrSize := 80.0
+	// Thêm QR Code góc trên phải (chứa Tracking Number để tiện quét mã kho)
+	if order.TrackingNumber != "" {
+		png, err := qrcode.Encode(order.TrackingNumber, qrcode.Medium, 256)
+		if err == nil {
+			imgH, err := gopdf.ImageHolderByReader(bytes.NewReader(png))
+			if err == nil {
+				pdf.ImageByHolder(imgH, pageW-margin-qrSize-5, margin+5, &gopdf.Rect{W: qrSize, H: qrSize})
+			}
+		}
+	}
 
-	l.divider(4)
+	// ----- Header -----
+	l.y = margin + 10
+	headerW := textW - qrSize - 10
+
+	pdf.SetFont(fontBold, "", 24)
+	pdf.SetXY(textX, l.y)
+	pdf.CellWithOption(&gopdf.Rect{W: headerW, H: 24 * lineFactor}, "OCEAN EXPRESS", gopdf.CellOption{Align: gopdf.Center})
+	l.y += 24 * lineFactor
+
+	pdf.SetFont(fontBold, "", 20)
+	pdf.SetXY(textX, l.y)
+	pdf.CellWithOption(&gopdf.Rect{W: headerW, H: 20 * lineFactor}, order.TrackingNumber, gopdf.CellOption{Align: gopdf.Center})
+	l.y += 20 * lineFactor
+
+	// Đảm bảo không bị lẹm viền vào QR Code
+	qrBottom := margin + 5 + qrSize + 5
+	if l.y < qrBottom {
+		l.y = qrBottom
+	}
+
+	l.divider(6)
 
 	// ----- Người gửi -----
-	l.label(fontBold, 10, "Từ (Người gửi):")
-	l.paragraph(fontRegular, 10, "Cửa hàng / Đối tác Ocean Express", 1)
+	l.label(fontBold, 14, "Từ (Người gửi):")
 
-	l.divider(4)
+	senderStr := "Ocean Express Shop"
+	if shop != nil && shop.Name != "" {
+		senderStr = shop.Name
+	}
+	if order.SenderPhone != nil && *order.SenderPhone != "" {
+		senderStr += " - " + *order.SenderPhone
+	}
+	l.paragraph(fontBold, 16, senderStr, 1)
+	l.paragraph(fontRegular, 14, strings.TrimSpace(order.SenderAddressDetail), 1)
+
+	l.divider(6)
 
 	// ----- Người nhận -----
-	l.label(fontBold, 11, "Đến (Người nhận):")
+	l.label(fontBold, 14, "Đến (Người nhận):")
 
 	receiver := strings.TrimSpace(order.ReceiverName)
 	if phone := strings.TrimSpace(order.ReceiverPhone); phone != "" {
@@ -94,32 +179,32 @@ func GenerateOrderLabelPDF(order *domain.ShippingOrder) ([]byte, error) {
 			receiver = phone
 		}
 	}
-	l.paragraph(fontBold, 13, receiver, 2)
-	l.paragraph(fontRegular, 10, strings.TrimSpace(order.ReceiverAddressDetail), 3)
+	l.paragraph(fontBold, 16, receiver, 2)
+	l.paragraph(fontRegular, 14, strings.TrimSpace(order.ReceiverAddressDetail), 3)
 
-	l.divider(4)
+	l.divider(6)
 
 	// ----- Khối lượng & COD trên cùng một hàng -----
 	rowY := l.y
-	pdf.SetFont(fontBold, "", 11)
+	pdf.SetFont(fontBold, "", 16)
 	pdf.SetXY(textX, rowY)
 	pdf.Cell(nil, fmt.Sprintf("Khối lượng: %s g", formatThousands(int64(order.Weight))))
 
-	pdf.SetFont(fontBold, "", 13)
+	pdf.SetFont(fontBold, "", 16)
 	pdf.SetXY(textX, rowY)
 	codW := textW
 	pdf.CellWithOption(
-		&gopdf.Rect{W: codW, H: 16},
+		&gopdf.Rect{W: codW, H: 16 * lineFactor},
 		fmt.Sprintf("COD: %s đ", formatThousands(int64(order.CodAmount))),
 		gopdf.CellOption{Align: gopdf.Right},
 	)
-	l.y = rowY + 13*lineFactor
+	l.y = rowY + 16*lineFactor
 
-	l.divider(4)
+	l.divider(6)
 
 	// ----- Ghi chú -----
-	l.label(fontBold, 10, "Ghi chú:")
-	l.paragraph(fontRegular, 10,
+	l.label(fontBold, 14, "Ghi chú:")
+	l.paragraph(fontRegular, 14,
 		"Cho xem hàng, không thử. Quý khách vui lòng quay video khi mở kiện hàng để được hỗ trợ tốt nhất.", 3)
 
 	// ----- Ký nhận (neo ở đáy tem, không phụ thuộc nội dung phía trên) -----
@@ -127,17 +212,11 @@ func GenerateOrderLabelPDF(order *domain.ShippingOrder) ([]byte, error) {
 	pdf.Line(margin, sigY, borderRight, sigY)
 
 	colW := textW / 2
-	pdf.SetFont(fontBold, "", 9)
-	pdf.SetXY(textX, sigY+6)
-	pdf.CellWithOption(&gopdf.Rect{W: colW, H: 12}, "Chữ ký người nhận", gopdf.CellOption{Align: gopdf.Center})
-	pdf.SetXY(textX+colW, sigY+6)
-	pdf.CellWithOption(&gopdf.Rect{W: colW, H: 12}, "Chữ ký bưu tá", gopdf.CellOption{Align: gopdf.Center})
-
-	var buf bytes.Buffer
-	if _, err := pdf.WriteTo(&buf); err != nil {
-		return nil, fmt.Errorf("ghi PDF: %w", err)
-	}
-	return buf.Bytes(), nil
+	pdf.SetFont(fontBold, "", 14)
+	pdf.SetXY(textX, sigY+10)
+	pdf.CellWithOption(&gopdf.Rect{W: colW, H: 18}, "Chữ ký người nhận", gopdf.CellOption{Align: gopdf.Center})
+	pdf.SetXY(textX+colW, sigY+10)
+	pdf.CellWithOption(&gopdf.Rect{W: colW, H: 18}, "Chữ ký bưu tá", gopdf.CellOption{Align: gopdf.Center})
 }
 
 // layout giữ con trỏ dọc để các trường trôi tự nhiên theo nội dung,

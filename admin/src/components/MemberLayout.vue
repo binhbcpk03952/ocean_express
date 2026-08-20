@@ -36,6 +36,7 @@
 
       <!-- Right actions -->
       <div class="flex items-center gap-2">
+        <NotificationBell />
         <ThemeToggle />
         <button class="rounded-md p-2 text-meta hover:bg-danger/10 hover:text-danger transition-colors" @click="handleLogout" aria-label="Đăng xuất">
           <LogOut class="h-5 w-5" />
@@ -73,6 +74,7 @@ import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import ThemeToggle from './ui/ThemeToggle.vue';
+import NotificationBell from './NotificationBell.vue';
 import { ListChecks, ScanLine, LogOut, BarChart2 } from 'lucide-vue-next';
 
 const router = useRouter();

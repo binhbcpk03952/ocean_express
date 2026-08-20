@@ -18,7 +18,13 @@ func main() {
 		CodAmount:             250000,
 	}
 
-	pdfBytes, err := pdf.GenerateOrderLabelPDF(order)
+	shop := &domain.Shop{
+		Name:          "Shop Thời Trang ABC",
+		Phone:         stringPtr("0909123456"),
+		AddressDetail: "123 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM",
+	}
+
+	pdfBytes, err := pdf.GenerateOrderLabelPDF(order, shop)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,4 +34,8 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("Successfully generated sample_label.pdf")
+}
+
+func stringPtr(s string) *string {
+	return &s
 }

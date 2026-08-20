@@ -68,7 +68,7 @@ type RegisterShopRequest struct {
 func (h *ShopHandler) Register(c *gin.Context) {
 	var req RegisterShopRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Dữ liệu không hợp lệ"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 

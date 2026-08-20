@@ -4,6 +4,7 @@
 
 # Databases and Dumps
 *.sql
+*.tar
 *.tar.gz
 *.zip
 data/

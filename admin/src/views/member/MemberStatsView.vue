@@ -62,8 +62,8 @@ const fetchStats = async () => {
   loading.value = true;
   try {
     const res = await api.get('/stats/member/me');
-    if (res.data.success) {
-      stats.value = res.data.data;
+    if (res.success) {
+      stats.value = res.data;
     }
   } catch (error) {
     toast.error('Lỗi khi lấy dữ liệu thống kê');

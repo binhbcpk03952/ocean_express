@@ -14,17 +14,19 @@ import (
 type OrderHandler struct {
 	orderUseCase domain.OrderUseCase
 	rateUseCase  domain.RateUseCase
+	shopRepo     domain.ShopRepository
 }
 
 func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.RateUseCase, shopRepo domain.ShopRepository) {
 	handler := &OrderHandler{
 		orderUseCase: orderUC,
 		rateUseCase:  rateUC,
+		shopRepo:     shopRepo,
 	}
 
 	api := r.Group("/api/v1")
 	{
-		// 1. API DÃ nh cho Äá»‘i tÃ¡c (Shop)
+		// 1. API Dành cho Đối tác (Shop qua X-API-Key)
 		shopGroup := api.Group("")
 		shopGroup.Use(middleware.ShopAPIKeyAuth(shopRepo))
 		{
@@ -32,8 +34,8 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			shopGroup.POST("/orders", handler.CreateOrder)
 		}
 
-		// 2. Portal Shop (JWT role 'shop'): táº¡o Ä‘Æ¡n + tÃ­nh cÆ°á»›c báº±ng phiÃªn Ä‘Äƒng nháº­p
-		// thay vÃ¬ API key. shopID láº¥y tá»« user_id trong token.
+		// 2. Portal Shop (JWT role 'shop'): tạo đơn + tính cước bằng phiên đăng nhập
+		// thay vì API key. shopID lấy từ user_id trong token.
 		shopPortalGroup := api.Group("/shop")
 		shopPortalGroup.Use(middleware.AuthRequired(), middleware.RoleRequired(domain.RoleShop))
 		{
@@ -42,31 +44,41 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			shopPortalGroup.POST("/rates/calculate", handler.CalculateRate)
 			shopPortalGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
 			shopPortalGroup.GET("/orders/:id/label", handler.GetOrderLabel)
+			shopPortalGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
 
-		// 3. API DÃ nh cho Ná»™i bá»™ (NhÃ¢n viÃªn / Shipper)
+		// 3. API Dành cho Nội bộ (Nhân viên / Shipper)
 		internalGroup := api.Group("")
 		internalGroup.Use(middleware.AuthRequired())
 		{
 			internalGroup.GET("/orders", handler.GetOrders)
-			// Tra cá»©u theo mÃ£ váº­n Ä‘Æ¡n: má» i role ná»™i bá»™ Ä‘á» u tra Ä‘Æ°á»£c (Ä‘áº·c biá»‡t Hub Staff
-			// dÃ¹ng Ä‘á»ƒ quÃ©t Ä‘Æ¡n chÆ°a náº±m trong danh sÃ¡ch hub cá»§a mÃ¬nh). DÃ¹ng path riÃªng
-			// /tracking/:tracking_number thay vÃ¬ lá»“ng dÆ°á»›i /orders/... vÃ¬ Gin khÃ´ng cho
-			// static segment ("tracking") Ä‘á»©ng cÃ¹ng vá»‹ trÃ­ vá»›i param (:id).
+			// Tra cứu theo mã vận đơn: mọi role nội bộ đều tra được (đặc biệt Hub Staff
+			// dùng để quét đơn chưa nằm trong danh sách hub của mình). Dùng path riêng
+			// /tracking/:tracking_number thay vì lồng dưới /orders/... vì Gin không cho
+			// static segment ("tracking") đứng cùng vị trí với param (:id).
 			internalGroup.GET("/tracking/:tracking_number", handler.GetOrderByTracking)
 			internalGroup.GET("/orders/:id", handler.GetOrder)
-			internalGroup.GET("/orders/:id/label", handler.GetOrderLabel)
-			internalGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
 			internalGroup.PUT("/orders/:id/status", handler.UpdateStatus)
 			internalGroup.POST("/orders/:id/assign", middleware.RoleRequired(string(domain.RoleAdmin), string(domain.RoleHubStaff)), handler.AssignOrder)
 			internalGroup.POST("/orders/submit-cod", middleware.RoleRequired("first_mile_driver", "last_mile_driver"), handler.SubmitCOD)
+			internalGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
 		
-		// 4. API Public (Tra cứu vận đơn cho khách hàng)
+		// 4. API Public & In vận đơn (Tra cứu vận đơn & in tem công khai không chặn auth để iframe / popup in dễ dàng)
 		publicGroup := api.Group("/public")
 		{
 			publicGroup.GET("/tracking/:tracking_number", handler.GetPublicTracking)
+			publicGroup.GET("/tracking/:tracking_number/label", handler.GetOrderLabel)
+			publicGroup.GET("/tracking/:tracking_number/pdf", handler.GetOrderLabel)
+			publicGroup.GET("/orders/:id/label", handler.GetOrderLabel)
+			publicGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
+			publicGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
+
+		// Hỗ trợ in tem trực tiếp qua /api/v1/orders/:id/pdf và /api/v1/orders/:id/label
+		api.GET("/orders/:id/label", handler.GetOrderLabel)
+		api.GET("/orders/:id/pdf", handler.GetOrderLabel)
+		api.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 	}
 }
 
@@ -273,22 +285,92 @@ func (h *OrderHandler) AssignOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Order assigned successfully"})
 }
 
+type BatchLabelsRequest struct {
+	OrderIDs []string `json:"order_ids" binding:"required"`
+}
+
 func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		id = c.Param("tracking_number")
+	}
 	order, _, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	if err != nil || order == nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Không tìm thấy vận đơn"})
 		return
 	}
 
-	pdfBytes, err := pdf.GenerateOrderLabelPDF(order)
+	userRoleStr, _ := c.Get("role")
+	userIdStr, _ := c.Get("user_id")
+	if userRoleStr != nil && userRoleStr.(string) == "shop" {
+		if userIdStr != nil && order.ShopID != userIdStr.(string) {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Bạn không có quyền in vận đơn này"})
+			return
+		}
+	}
+
+	var shop *domain.Shop
+	if order.ShopID != "" {
+		shop, _ = h.shopRepo.GetByID(c.Request.Context(), order.ShopID)
+	}
+
+	pdfBytes, err := pdf.GenerateOrderLabelPDF(order, shop)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate PDF"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Lỗi tạo file PDF: " + err.Error()})
 		return
 	}
 
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "inline; filename=\"label_"+order.TrackingNumber+".pdf\"")
+	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+}
+
+func (h *OrderHandler) GetBatchOrderLabels(c *gin.Context) {
+	var req BatchLabelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.OrderIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Danh sách mã vận đơn không hợp lệ"})
+		return
+	}
+
+	userRoleStr, _ := c.Get("role")
+	userIdStr, _ := c.Get("user_id")
+
+	var orders []*domain.ShippingOrder
+	shopMap := make(map[string]*domain.Shop)
+
+	for _, id := range req.OrderIDs {
+		order, _, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), id)
+		if err == nil && order != nil {
+			if userRoleStr != nil && userRoleStr.(string) == "shop" {
+				if userIdStr != nil && order.ShopID != userIdStr.(string) {
+					continue // bỏ qua đơn không thuộc quyền sở hữu của shop
+				}
+			}
+			orders = append(orders, order)
+			if order.ShopID != "" {
+				if _, exists := shopMap[order.ShopID]; !exists {
+					shop, _ := h.shopRepo.GetByID(c.Request.Context(), order.ShopID)
+					if shop != nil {
+						shopMap[order.ShopID] = shop
+					}
+				}
+			}
+		}
+	}
+
+	if len(orders) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Không tìm thấy vận đơn nào hợp lệ để in"})
+		return
+	}
+
+	pdfBytes, err := pdf.GenerateBatchOrderLabelsPDF(orders, shopMap)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Lỗi tạo file PDF batch: " + err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", "inline; filename=\"batch_labels.pdf\"")
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
@@ -333,10 +415,20 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 func (h *OrderHandler) GetOrder(c *gin.Context) {
 	orderID := c.Param("id")
 	order, logs, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), orderID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+	if err != nil || order == nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Không tìm thấy vận đơn"})
 		return
 	}
+
+	userRoleStr, _ := c.Get("role")
+	userIdStr, _ := c.Get("user_id")
+	if userRoleStr != nil && userRoleStr.(string) == "shop" {
+		if userIdStr != nil && order.ShopID != userIdStr.(string) {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Bạn không có quyền truy cập vận đơn này"})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
 		"order": order,
 		"logs":  logs,
@@ -349,7 +441,7 @@ func (h *OrderHandler) GetOrderByTracking(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{
 			"code":    "NOT_FOUND",
-			"message": "KhÃ´ng tÃ¬m tháº¥y váº­n Ä‘Æ¡n vá»›i mÃ£ nÃ y",
+			"message": "Không tìm thấy vận đơn với mã này",
 		}})
 		return
 	}
@@ -369,7 +461,7 @@ func (h *OrderHandler) SubmitCOD(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "N?p COD thành công",
+		"message": "Nộp COD thành công",
 		"data": gin.H{
 			"amount_submitted": total,
 		},
@@ -380,18 +472,31 @@ func (h *OrderHandler) GetPublicTracking(c *gin.Context) {
 	trackingNumber := c.Param("tracking_number")
 	
 	order, logs, err := h.orderUseCase.GetOrderDetailsByTrackingNumber(c.Request.Context(), trackingNumber)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Khong tim thay don hang"})
+	if err != nil || order == nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Không tìm thấy thông tin vận đơn"})
 		return
 	}
 
-	// Filter out sensitive data for public tracking
+	// Filter and format data for public tracking
 	publicData := gin.H{
+		"id":                      order.ID,
 		"tracking_number":         order.TrackingNumber,
 		"status":                  order.Status,
-		"receiver_name":           order.ReceiverName, // could be masked like Nguyen V***
-		"receiver_phone":          order.ReceiverPhone, // could be masked like 090****123
+		"receiver_name":           order.ReceiverName,
+		"receiver_phone":          order.ReceiverPhone,
+		"weight":                  order.Weight,
+		"length":                  order.Length,
+		"width":                   order.Width,
+		"height":                  order.Height,
+		"cod_amount":              order.CodAmount,
+		"shipping_fee":            order.ShippingFee,
+		"estimated_delivery_time": order.EstimatedDeliveryTime,
+		"sla_deadline":            order.SlaDeadline,
+		"sla_breached":            order.SlaBreached,
+		"delivery_attempts":       order.DeliveryAttempts,
+		"failure_reason":          order.FailureReason,
 		"created_at":              order.CreatedAt,
+		"updated_at":              order.UpdatedAt,
 		"tracking_logs":           logs,
 		"sender_latitude":         order.SenderLatitude,
 		"sender_longitude":        order.SenderLongitude,
@@ -399,6 +504,8 @@ func (h *OrderHandler) GetPublicTracking(c *gin.Context) {
 		"receiver_longitude":      order.ReceiverLongitude,
 		"sender_address_detail":   order.SenderAddressDetail,
 		"receiver_address_detail": order.ReceiverAddressDetail,
+		"sender_location_id":      order.SenderLocationID,
+		"receiver_location_id":    order.ReceiverLocationID,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": publicData})
