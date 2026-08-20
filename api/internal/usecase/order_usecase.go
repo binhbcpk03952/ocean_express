@@ -190,6 +190,9 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, note, failureReason, employeeID, employeeRole, employeeHubID string, lat, lng float64) error {
 	order, err := u.orderRepo.GetByID(ctx, orderID)
 	if err != nil || order == nil {
+		order, err = u.orderRepo.GetByTrackingNumber(ctx, orderID)
+	}
+	if err != nil || order == nil {
 		return fmt.Errorf("%w: không tìm thấy vận đơn", domain.ErrNotFound)
 	}
 
@@ -206,7 +209,7 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 
 	// 2. State Machine Validation
 	validTransitions := map[string][]string{
-		"ready_to_pick":    {"picked_up", "returned"},
+		"ready_to_pick":    {"picked_up", "returned", "cancelled"},
 		"picked_up":        {"hub_inbound", "returned"},
 		"hub_inbound":      {"in_transit", "hub_outbound"},
 		"in_transit":       {"hub_inbound"},
@@ -218,6 +221,7 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 		"return_hub":       {"returned"},
 		"delivered":        {},
 		"returned":         {},
+		"cancelled":        {},
 	}
 
 	allowed, ok := validTransitions[order.Status]
@@ -252,6 +256,7 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 			"return_hub":       {"hub_staff"},
 			"delivered":        {"last_mile_driver"},
 			"returned":         {"first_mile_driver", "last_mile_driver", "hub_staff"},
+			"cancelled":        {"admin", "shop", "hub_staff"},
 		}
 
 		if roles, exists := allowedRoles[status]; exists {
