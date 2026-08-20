@@ -92,19 +92,28 @@ func (h *ShopHandler) GetMe(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Không tìm thấy thông tin đối tác"})
 		return
 	}
+
+	var phoneStr string
+	if shop.Phone != nil {
+		phoneStr = *shop.Phone
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true, 
 		"data": gin.H{
 			"id":             shop.ID,
 			"name":           shop.Name,
+			"phone":          phoneStr,
 			"email":          shop.Email,
 			"webhook_url":    shop.WebhookURL,
 			"location_id":    shop.LocationID,
 			"address_detail": shop.AddressDetail,
+			"latitude":       shop.Latitude,
+			"longitude":      shop.Longitude,
 			"status":         shop.Status,
 			"is_active":      shop.IsActive,
 			"created_at":     shop.CreatedAt,
-			"api_key":        shop.APIKey, // Trả về API Key để shop có thể xem sau khi được duyệt
+			"api_key":        shop.APIKey, // Trả về API Key để shop có thể xem và sử dụng
 		},
 	})
 }
@@ -237,7 +246,7 @@ func (h *ShopHandler) UpdateShop(c *gin.Context) {
 
 type RegenerateAPIKeyRequest struct {
 	Password string `json:"password" binding:"required"`
-	OTP      string `json:"otp" binding:"required"`
+	OTP      string `json:"otp"`
 }
 
 func (h *ShopHandler) RequestAPIKeyOTP(c *gin.Context) {
@@ -254,7 +263,7 @@ func (h *ShopHandler) RegenerateAPIKey(c *gin.Context) {
 
 	var req RegenerateAPIKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Thiếu mật khẩu hoặc mã OTP"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Vui lòng nhập mật khẩu xác nhận"})
 		return
 	}
 

@@ -31,7 +31,18 @@ func (u *shopUseCase) GetShops(ctx context.Context, status string) ([]*domain.Sh
 }
 
 func (u *shopUseCase) GetByID(ctx context.Context, id string) (*domain.Shop, error) {
-	return u.shopRepo.GetByID(ctx, id)
+	shop, err := u.shopRepo.GetByID(ctx, id)
+	if err != nil || shop == nil {
+		return shop, err
+	}
+	// Tự động sinh API key nếu shop trước đó chưa có
+	if shop.APIKey == "" {
+		if rawKey, err := utils.GenerateAPIKey(); err == nil {
+			shop.APIKey = rawKey
+			_ = u.shopRepo.Update(ctx, shop)
+		}
+	}
+	return shop, nil
 }
 
 // CreateShop tạo đối tác mới và sinh API key. API key thô chỉ được trả về đúng
@@ -41,7 +52,10 @@ func (u *shopUseCase) CreateShop(ctx context.Context, name, phone, webhookURL st
 		return nil, "", errors.New("tên và địa chỉ chi tiết không được để trống")
 	}
 
-	apiKey := "oe_" + uuid.New().String()
+	apiKey, err := utils.GenerateAPIKey()
+	if err != nil || apiKey == "" {
+		apiKey = "oe_" + uuid.New().String()
+	}
 
 	var phonePtr *string
 	if phone != "" {
@@ -68,8 +82,8 @@ func (u *shopUseCase) CreateShop(ctx context.Context, name, phone, webhookURL st
 	return shop, apiKey, nil
 }
 
-// RegisterShop: shop tự đăng ký bằng email + mật khẩu. Tài khoản được kích hoạt ngay lập tức.
-// Không cần Admin duyệt. API Key sẽ được sinh riêng khi shop yêu cầu qua OTP email.
+// RegisterShop: shop tự đăng ký bằng email + mật khẩu. Tài khoản được kích hoạt ngay lập tức
+// và tự động sinh sẵn API Key cho Shop để tích hợp nhanh chóng.
 func (u *shopUseCase) RegisterShop(ctx context.Context, name, phone, email, password string, locationID *string, addressDetail string, latitude, longitude *float64) (*domain.Shop, error) {
 	if name == "" || email == "" || password == "" || addressDetail == "" {
 		return nil, errors.New("tên, email, mật khẩu và địa chỉ không được để trống")
@@ -93,11 +107,17 @@ func (u *shopUseCase) RegisterShop(ctx context.Context, name, phone, email, pass
 		phonePtr = &phone
 	}
 
+	rawKey, _ := utils.GenerateAPIKey()
+	if rawKey == "" {
+		rawKey = "oe_" + uuid.New().String()
+	}
+
 	shop := &domain.Shop{
 		Name:          name,
 		Phone:         phonePtr,
 		Email:         &email,
 		PasswordHash:  hash,
+		APIKey:        rawKey,
 		LocationID:    locationID,
 		AddressDetail: addressDetail,
 		Latitude:      latitude,
@@ -173,6 +193,8 @@ func (u *shopUseCase) UpdateShop(ctx context.Context, id, name, phone, webhookUR
 	var phonePtr *string
 	if phone != "" {
 		phonePtr = &phone
+	} else if shop.Phone != nil {
+		phonePtr = shop.Phone
 	}
 
 	shop.Name = name
@@ -216,7 +238,7 @@ func (u *shopUseCase) RequestAPIKeyOTP(ctx context.Context, shopID string) error
 	return nil
 }
 
-// RegenerateAPIKey xác thực OTP (lấy từ email) + mật khẩu, sau đó mới sinh API key mới.
+// RegenerateAPIKey xác thực mật khẩu (và OTP nếu có), sau đó sinh API key mới.
 func (u *shopUseCase) RegenerateAPIKey(ctx context.Context, id, password, otp string) (string, error) {
 	shop, err := u.shopRepo.GetByID(ctx, id)
 	if err != nil {
@@ -226,19 +248,21 @@ func (u *shopUseCase) RegenerateAPIKey(ctx context.Context, id, password, otp st
 		return "", errors.New("không tìm thấy đối tác")
 	}
 
-	// Bước 1: Xác thực OTP
-	otpKey := "shop_apikey_otp:" + id
-	savedOTP, err := u.sessionRepo.GetOTP(ctx, otpKey)
-	if err != nil {
-		return "", errors.New("lỗi hệ thống khi kiểm tra OTP")
-	}
-	if savedOTP == "" || savedOTP != otp {
-		return "", errors.New("mã OTP không hợp lệ hoặc đã hết hạn")
-	}
-
-	// Bước 2: Xác thực mật khẩu
+	// Bước 1: Xác thực mật khẩu
 	if !utils.CheckPasswordHash(password, shop.PasswordHash) {
 		return "", errors.New("mật khẩu không chính xác")
+	}
+
+	// Bước 2: Xác thực OTP nếu có gửi lên
+	if otp != "" {
+		otpKey := "shop_apikey_otp:" + id
+		savedOTP, err := u.sessionRepo.GetOTP(ctx, otpKey)
+		if err == nil && savedOTP != "" {
+			if savedOTP != otp {
+				return "", errors.New("mã OTP không hợp lệ hoặc đã hết hạn")
+			}
+			_ = u.sessionRepo.DeleteOTP(ctx, otpKey)
+		}
 	}
 
 	// Bước 3: Sinh API key mới
@@ -251,9 +275,6 @@ func (u *shopUseCase) RegenerateAPIKey(ctx context.Context, id, password, otp st
 	if err := u.shopRepo.Update(ctx, shop); err != nil {
 		return "", errors.New("lỗi khi lưu API key mới")
 	}
-
-	// Xoá OTP sau khi sử dụng thành công
-	_ = u.sessionRepo.DeleteOTP(ctx, otpKey)
 
 	return newKey, nil
 }
