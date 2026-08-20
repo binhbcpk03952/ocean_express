@@ -32,6 +32,14 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 		{
 			shopGroup.POST("/rates/calculate", handler.CalculateRate)
 			shopGroup.POST("/orders", handler.CreateOrder)
+			shopGroup.GET("/orders", handler.GetOrders)
+			shopGroup.GET("/orders/:id", handler.GetOrder)
+			shopGroup.GET("/orders/:id/label", handler.GetOrderLabel)
+			shopGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
+			shopGroup.GET("/orders/:id/print", handler.GetOrderLabel)
+			shopGroup.GET("/orders/:id/print-label", handler.PrintLabelJSON)
+			shopGroup.POST("/orders/print-label", handler.PrintLabelJSON)
+			shopGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
 
 		// 2. Portal Shop (JWT role 'shop'): tạo đơn + tính cước bằng phiên đăng nhập
@@ -44,6 +52,7 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			shopPortalGroup.POST("/rates/calculate", handler.CalculateRate)
 			shopPortalGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
 			shopPortalGroup.GET("/orders/:id/label", handler.GetOrderLabel)
+			shopPortalGroup.GET("/orders/:id/print-label", handler.PrintLabelJSON)
 			shopPortalGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
 
@@ -72,6 +81,8 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			publicGroup.GET("/tracking/:tracking_number/pdf", handler.GetOrderLabel)
 			publicGroup.GET("/orders/:id/label", handler.GetOrderLabel)
 			publicGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
+			publicGroup.GET("/orders/:id/print-label", handler.PrintLabelJSON)
+			publicGroup.POST("/orders/print-label", handler.PrintLabelJSON)
 			publicGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
 	}
@@ -318,6 +329,57 @@ func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "inline; filename=\"label_"+order.TrackingNumber+".pdf\"")
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+}
+
+func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		id = c.Query("order_id")
+	}
+	if id == "" {
+		id = c.Query("tracking_number")
+	}
+	if id == "" {
+		var req struct {
+			OrderID        string `json:"order_id"`
+			TrackingNumber string `json:"tracking_number"`
+		}
+		_ = c.ShouldBindJSON(&req)
+		if req.OrderID != "" {
+			id = req.OrderID
+		} else if req.TrackingNumber != "" {
+			id = req.TrackingNumber
+		}
+	}
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "status": "error", "success": false, "message": "Thiếu mã đơn hàng hoặc mã vận đơn", "error": "Thiếu mã đơn hàng hoặc mã vận đơn"})
+		return
+	}
+	order, _, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), id)
+	if err != nil || order == nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 404, "status": "error", "success": false, "message": "Không tìm thấy vận đơn", "error": "Không tìm thấy vận đơn"})
+		return
+	}
+
+	labelURL := fmt.Sprintf("https://api.oceanexpress.bcbdev.id.vn/api/v1/public/orders/%s/label", order.ID)
+	trackingURL := fmt.Sprintf("https://oceanexpress.bcbdev.id.vn/tracking?code=%s", order.TrackingNumber)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":            200,
+		"status":          "success",
+		"success":         true,
+		"message":         "Lấy thông tin in vận đơn thành công",
+		"data": gin.H{
+			"order_id":        order.ID,
+			"tracking_number": order.TrackingNumber,
+			"label_url":       labelURL,
+			"pdf_url":         labelURL,
+			"tracking_url":    trackingURL,
+		},
+		"label_url":       labelURL,
+		"pdf_url":         labelURL,
+		"tracking_url":    trackingURL,
+	})
 }
 
 func (h *OrderHandler) GetBatchOrderLabels(c *gin.Context) {

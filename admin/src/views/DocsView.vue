@@ -41,6 +41,15 @@
               Dành cho Chủ Shop
             </a>
             <a
+              href="#api"
+              class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200"
+              :class="activeSection === 'api' ? 'bg-white text-cyan-700 shadow-sm ring-1 ring-slate-900/5' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'"
+              @click="scrollTo('api')"
+            >
+              <Code class="w-4 h-4" :class="activeSection === 'api' ? 'text-cyan-500' : 'text-slate-400'" />
+              Tích hợp API & In vận đơn
+            </a>
+            <a
               href="#hub"
               class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200"
               :class="activeSection === 'hub' ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-slate-900/5' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'"
@@ -95,7 +104,7 @@
               <Info class="w-6 h-6 text-blue-500 flex-shrink-0" />
               <div>
                 <p class="font-semibold text-blue-900 mb-1">Mẹo truy cập nhanh</p>
-                <p class="text-blue-800 text-sm">Truy cập Cổng quản lý dành cho Shop tại tên miền chính của hệ thống. Đăng nhập bằng số điện thoại và mật khẩu được cấp.</p>
+                <p class="text-blue-800 text-sm">Truy cập Cổng quản lý dành cho Shop tại tên miền chính của hệ thống. Đăng nhập bằng email và mật khẩu được cấp.</p>
               </div>
             </div>
 
@@ -108,125 +117,149 @@
                 </li>
                 <li class="flex gap-3">
                   <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-sm font-semibold">2</span>
-                  <span>Tại thanh Menu bên trái, chọn mục <strong class="text-slate-800">Quản lý Đơn hàng (Orders)</strong>.</span>
+                  <span>Vào mục <strong>Tạo đơn mới</strong>. Nhập thông tin người nhận: Tên, Số điện thoại, Địa chỉ chi tiết.</span>
                 </li>
                 <li class="flex gap-3">
                   <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-sm font-semibold">3</span>
-                  <span>Bấm nút <strong class="text-slate-800">Tạo Đơn Hàng Mới (+)</strong> ở góc trên bên phải.</span>
+                  <span>Chọn <strong>Khu vực nhận hàng</strong> để hệ thống tính cước phí tự động.</span>
                 </li>
                 <li class="flex gap-3">
                   <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-sm font-semibold">4</span>
-                  <span>Điền đầy đủ thông tin Người nhận (Tên, SĐT, Địa chỉ chi tiết), Khối lượng (gram) và Tiền thu hộ COD.</span>
+                  <span>Nhập thông tin kiện hàng: Khối lượng (g), kích thước và tiền thu hộ (COD) nếu có.</span>
                 </li>
                 <li class="flex gap-3">
                   <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-sm font-semibold">5</span>
-                  <span>Hệ thống sẽ <strong class="text-slate-800 text-sky-600">tự động tính toán</strong> phí vận chuyển. Nhấn <strong class="text-slate-800">Lưu</strong> để hoàn tất.</span>
+                  <span>Bấm <strong>Tạo vận đơn</strong>. Mã vận đơn dạng <code>OE-XXXXXX</code> sẽ được sinh tự động. Bạn có thể in tem nhãn trực tiếp bằng nút In vận đơn.</span>
                 </li>
               </ul>
             </div>
+          </div>
+        </section>
 
-            <div class="mt-8">
-              <h4 class="text-xl font-bold text-slate-900 mb-3">Theo dõi Lộ trình và Đối soát</h4>
-              <p>Mã vận đơn (Tracking Number) sẽ được cấp ngay sau khi tạo đơn. Khi đơn hàng giao thành công, tiền thu hộ COD (sau khi trừ cước phí) sẽ tự động cộng vào <strong>Số dư Ví</strong> của Shop. Bạn có thể theo dõi biến động tại mục <strong>Ví & Đối soát (Settlements)</strong>.</p>
+        <!-- SECTION: API & DEVELOPER -->
+        <section id="api" class="mb-20 scroll-mt-32">
+          <div class="flex items-center gap-4 mb-8 pb-4 border-b border-slate-200/60">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-100 to-sky-100 border border-cyan-200/50 flex items-center justify-center text-cyan-600 shadow-sm">
+              <Code class="w-6 h-6" />
             </div>
+            <h3 class="text-3xl font-bold text-slate-900 tracking-tight">Tích hợp API & In Vận Đơn (Developer)</h3>
+          </div>
 
-            <!-- API Integration Guide -->
-            <div class="bg-slate-900 rounded-2xl p-8 shadow-md mt-12 text-slate-300">
-              <div class="flex items-center gap-3 mb-6 border-b border-slate-700 pb-4">
-                <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
-                  <Code class="w-5 h-5 text-sky-400" />
-                </div>
-                <h4 class="text-2xl font-bold text-white">Tài liệu Tích hợp API (Dành cho Developer)</h4>
-              </div>
-              
-              <p class="mb-6 text-slate-400 text-sm">Hệ thống Ocean Express cung cấp API RESTful để bạn tích hợp trực tiếp việc tạo đơn tự động vào Website hoặc ERP của Shop.</p>
+          <div class="prose max-w-none text-slate-600 space-y-6 text-base leading-relaxed">
+            <p>Ocean Express cung cấp hệ thống REST API hoàn chỉnh để các sàn TMĐT, Website bán hàng (WooCommerce, Shopify, Laravel, Haravan...) hoặc phần mềm ERP kết nối tự động tạo đơn, tính cước và in tem vận đơn.</p>
 
+            <div class="bg-slate-900 text-slate-300 rounded-2xl p-6 sm:p-8 shadow-md border border-slate-800">
               <div class="space-y-8">
-                <!-- 1. API Key -->
+                <!-- 1. Header auth -->
                 <div>
                   <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">01.</span> Lấy API Key
+                    <span class="text-sky-400 text-sm">01.</span> Xác thực qua X-API-Key (Header)
                   </h5>
-                  <p class="text-sm mb-3">Vào mục <strong>Tài khoản (Account)</strong> trên Portal, cuộn xuống phần <strong>API Key</strong> và nhấn <em>Generate API Key</em>. Chèn Key này vào header của mọi request gửi đi.</p>
-                  <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-emerald-400 overflow-x-auto border border-slate-800">X-API-Key: {YOUR_API_KEY}</pre>
+                  <p class="text-sm mb-3">Lấy API Key tại mục <strong>Thông tin tài khoản</strong> trên Portal. Gắn vào HTTP Header của tất cả request:</p>
+                  <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-emerald-400 overflow-x-auto border border-slate-800">X-API-Key: oe_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
                 </div>
 
-                <!-- 2. Tra cứu Địa chỉ hành chính -->
+                <!-- 2. In tem vận đơn PDF & JSON -->
                 <div>
                   <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">02.</span> Tra cứu Mã Khu vực (Location ID)
+                    <span class="text-sky-400 text-sm">02.</span> In Tem Vận Đơn (A6/A7 Standard)
                   </h5>
-                  <p class="text-sm mb-3">Bạn cần mã khu vực để tính cước và tạo đơn (vd: <code>VN-01</code> cho Hà Nội). Dùng API này để lấy danh sách Tỉnh/Thành hoặc Quận/Huyện dựa theo <code>parent_id</code>.</p>
-                  <div class="flex items-center gap-2 mb-2">
-                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">GET</span>
-                    <code class="text-sky-300 text-sm font-mono">/api/v1/locations?type=province</code>
-                  </div>
-                  <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800">curl -X GET "https://api.oceanexpress.bcbdev.id.vn/api/v1/locations?parent_id=VN-01" \
--H "X-API-Key: {YOUR_API_KEY}"</pre>
-                </div>
+                  <p class="text-sm mb-3">Hỗ trợ 2 cách in tem: Trực tiếp lấy stream file PDF (để mở xem/in) hoặc gọi API JSON lấy đường dẫn in:</p>
+                  
+                  <div class="space-y-4">
+                    <div>
+                      <div class="text-xs font-semibold text-sky-400 mb-1">Cách 1: Lấy file PDF trực tiếp (Stream)</div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">GET</span>
+                        <code class="text-sky-300 text-sm font-mono">https://api.oceanexpress.bcbdev.id.vn/api/v1/orders/{order_id}/label</code>
+                      </div>
+                      <pre class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-slate-800">curl -X GET "https://api.oceanexpress.bcbdev.id.vn/api/v1/orders/12345/label" \
+  -H "X-API-Key: {YOUR_API_KEY}"</pre>
+                    </div>
 
-                <!-- 3. Tính cước -->
-                <div>
-                  <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">03.</span> Tính phí Vận chuyển (Tùy chọn)
-                  </h5>
-                  <div class="flex items-center gap-2 mb-2">
-                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
-                    <code class="text-sky-300 text-sm font-mono">/api/v1/rates/calculate</code>
-                  </div>
-                  <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800">{
-  "receiver_location_id": "VN-01", 
-  "weight": 1500
+                    <div>
+                      <div class="text-xs font-semibold text-emerald-400 mb-1">Cách 2: Lấy Link in vận đơn qua JSON API (Dành cho Laravel / Web App)</div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
+                        <code class="text-sky-300 text-sm font-mono">https://api.oceanexpress.bcbdev.id.vn/api/v1/orders/print-label</code>
+                      </div>
+                      <pre class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-slate-800">curl -X POST "https://api.oceanexpress.bcbdev.id.vn/api/v1/orders/print-label" \
+  -H "X-API-Key: {YOUR_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"order_id": "12345"}'</pre>
+                      <p class="text-xs mt-2 text-slate-400">Response JSON:</p>
+                      <pre class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-emerald-400 overflow-x-auto border border-slate-800">{
+  "code": 200,
+  "status": "success",
+  "data": {
+    "order_id": "8f8b3c10-...",
+    "tracking_number": "OE-100234",
+    "label_url": "https://api.oceanexpress.bcbdev.id.vn/api/v1/public/orders/8f8b3c10-.../label",
+    "tracking_url": "https://oceanexpress.bcbdev.id.vn/tracking?code=OE-100234"
+  }
 }</pre>
+                    </div>
+                  </div>
                 </div>
 
-                <!-- 4. Tạo đơn -->
+                <!-- 3. Tạo đơn -->
                 <div>
                   <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">04.</span> Tạo Vận đơn Mới
+                    <span class="text-sky-400 text-sm">03.</span> Tạo Vận Đơn Tự Động
                   </h5>
                   <div class="flex items-center gap-2 mb-2">
                     <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
-                    <code class="text-sky-300 text-sm font-mono">/api/v1/orders</code>
+                    <code class="text-sky-300 text-sm font-mono">https://api.oceanexpress.bcbdev.id.vn/api/v1/orders</code>
                   </div>
-                  <pre class="bg-slate-950 p-4 rounded-xl text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800">{
+                  <pre class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-slate-800">{
   "receiver_name": "Nguyễn Văn A",
   "receiver_phone": "0987654321",
-  "receiver_location_id": "VN-01",
-  "receiver_address_detail": "123 Đường Cầu Giấy",
+  "receiver_location_id": "VN-HN-CG",
+  "receiver_address_detail": "123 Đường Cầu Giấy, Phường Dịch Vọng",
   "weight": 1500,
   "length": 20,
   "width": 15,
   "height": 10,
-  "cod_amount": 350000
+  "cod_amount": 350000,
+  "note": "Cho khách xem hàng"
 }</pre>
-                  <p class="text-sm mt-3 text-emerald-400">Response trả về sẽ kèm theo <code>tracking_number</code> (Mã vận đơn) và <code>shipping_fee</code> (Phí vận chuyển tự động).</p>
                 </div>
 
-                <!-- 5. In Tem Vận Đơn & Tra Cứu -->
+                <!-- 4. Tính cước -->
                 <div>
                   <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">05.</span> In Tem Vận Đơn & Tra Cứu
+                    <span class="text-sky-400 text-sm">04.</span> Tính Trước Cước Phí Vận Chuyển
                   </h5>
-                  <p class="text-sm mb-3">Tải trực tiếp file PDF tem in nhiệt chuẩn A6/A5 hoặc xuất PDF hàng loạt:</p>
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                      <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">GET</span>
-                      <code class="text-sky-300 text-sm font-mono">/api/v1/orders/{order_id}/pdf</code>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
-                      <code class="text-sky-300 text-sm font-mono">/api/v1/orders/labels/batch</code>
-                    </div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
+                    <code class="text-sky-300 text-sm font-mono">https://api.oceanexpress.bcbdev.id.vn/api/v1/rates/calculate</code>
                   </div>
+                  <pre class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-slate-800">{
+  "receiver_location_id": "VN-HN-CG", 
+  "weight": 1500
+}</pre>
+                </div>
+
+                <!-- 5. In hàng loạt -->
+                <div>
+                  <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                    <span class="text-sky-400 text-sm">05.</span> In Hàng Loạt Tem Vận Đơn (Batch PDF)
+                  </h5>
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">POST</span>
+                    <code class="text-sky-300 text-sm font-mono">https://api.oceanexpress.bcbdev.id.vn/api/v1/orders/labels/batch</code>
+                  </div>
+                  <pre class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-slate-800">{
+  "order_ids": ["uuid-1", "uuid-2", "OE-100234"]
+}</pre>
                 </div>
 
                 <!-- 6. Webhook -->
                 <div>
                   <h5 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                    <span class="text-sky-400 text-sm">06.</span> Nhận trạng thái tự động (Webhook)
+                    <span class="text-sky-400 text-sm">06.</span> Cấu hình Webhook Thông Báo Trạng Thái Đơn
                   </h5>
-                  <p class="text-sm mb-3">Tại mục <strong>Tài khoản</strong>, cập nhật <code>Webhook URL</code> của hệ thống bạn. Khi trạng thái đơn thay đổi (Vd: Giao thành công), Ocean Express sẽ POST dữ liệu cập nhật về URL đó ngay lập tức.</p>
+                  <p class="text-sm mb-3">Tại mục <strong>Thông tin tài khoản</strong>, cập nhật <code>Webhook URL</code> của hệ thống bạn. Khi trạng thái đơn thay đổi (Vd: Giao thành công, Đang giao hàng, Hoàn hàng), Ocean Express sẽ tự động POST dữ liệu JSON cập nhật về URL của bạn.</p>
                 </div>
               </div>
             </div>
@@ -386,7 +419,7 @@ const scrollTo = (id) => {
 };
 
 const handleScroll = () => {
-  const sections = ['shop', 'hub', 'driver', 'admin'];
+  const sections = ['shop', 'api', 'hub', 'driver', 'admin'];
   for (const id of sections) {
     const el = document.getElementById(id);
     if (el && window.scrollY >= el.offsetTop - 150) {
