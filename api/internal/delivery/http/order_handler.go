@@ -27,20 +27,24 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 
 	api := r.Group("/api/v1")
 	{
-		// 1. API Dành cho Đối tác (Shop qua X-API-Key)
-		shopGroup := api.Group("")
-		shopGroup.Use(middleware.ShopAPIKeyAuth(shopRepo))
+		// 1. API Quản lý Vận đơn (Nội bộ JWT hoặc Đối tác Shop qua X-API-Key)
+		ordersGroup := api.Group("")
+		ordersGroup.Use(middleware.CombinedAuth(shopRepo))
 		{
-			shopGroup.POST("/rates/calculate", handler.CalculateRate)
-			shopGroup.POST("/orders", handler.CreateOrder)
-			shopGroup.GET("/orders", handler.GetOrders)
-			shopGroup.GET("/orders/:id", handler.GetOrder)
-			shopGroup.GET("/orders/:id/label", handler.GetOrderLabel)
-			shopGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
-			shopGroup.GET("/orders/:id/print", handler.GetOrderLabel)
-			shopGroup.GET("/orders/:id/print-label", handler.PrintLabelJSON)
-			shopGroup.POST("/orders/print-label", handler.PrintLabelJSON)
-			shopGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
+			ordersGroup.POST("/rates/calculate", handler.CalculateRate)
+			ordersGroup.POST("/orders", handler.CreateOrder)
+			ordersGroup.GET("/orders", handler.GetOrders)
+			ordersGroup.GET("/orders/:id", handler.GetOrder)
+			ordersGroup.GET("/orders/:id/label", handler.GetOrderLabel)
+			ordersGroup.GET("/orders/:id/pdf", handler.GetOrderLabel)
+			ordersGroup.GET("/orders/:id/print", handler.GetOrderLabel)
+			ordersGroup.GET("/orders/:id/print-label", handler.PrintLabelJSON)
+			ordersGroup.POST("/orders/print-label", handler.PrintLabelJSON)
+			ordersGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
+			ordersGroup.GET("/tracking/:tracking_number", handler.GetOrderByTracking)
+			ordersGroup.PUT("/orders/:id/status", handler.UpdateStatus)
+			ordersGroup.POST("/orders/:id/assign", middleware.RoleRequired(string(domain.RoleAdmin), string(domain.RoleHubStaff)), handler.AssignOrder)
+			ordersGroup.POST("/orders/submit-cod", middleware.RoleRequired("first_mile_driver", "last_mile_driver"), handler.SubmitCOD)
 		}
 
 		// 2. Portal Shop (JWT role 'shop'): tạo đơn + tính cước bằng phiên đăng nhập
@@ -56,25 +60,8 @@ func NewOrderHandler(r *gin.Engine, orderUC domain.OrderUseCase, rateUC domain.R
 			shopPortalGroup.GET("/orders/:id/print-label", handler.PrintLabelJSON)
 			shopPortalGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
 		}
-
-		// 3. API Dành cho Nội bộ (Nhân viên / Shipper)
-		internalGroup := api.Group("")
-		internalGroup.Use(middleware.AuthRequired())
-		{
-			internalGroup.GET("/orders", handler.GetOrders)
-			// Tra cứu theo mã vận đơn: mọi role nội bộ đều tra được (đặc biệt Hub Staff
-			// dùng để quét đơn chưa nằm trong danh sách hub của mình). Dùng path riêng
-			// /tracking/:tracking_number thay vì lồng dưới /orders/... vì Gin không cho
-			// static segment ("tracking") đứng cùng vị trí với param (:id).
-			internalGroup.GET("/tracking/:tracking_number", handler.GetOrderByTracking)
-			internalGroup.GET("/orders/:id", handler.GetOrder)
-			internalGroup.PUT("/orders/:id/status", handler.UpdateStatus)
-			internalGroup.POST("/orders/:id/assign", middleware.RoleRequired(string(domain.RoleAdmin), string(domain.RoleHubStaff)), handler.AssignOrder)
-			internalGroup.POST("/orders/submit-cod", middleware.RoleRequired("first_mile_driver", "last_mile_driver"), handler.SubmitCOD)
-			internalGroup.POST("/orders/labels/batch", handler.GetBatchOrderLabels)
-		}
 		
-		// 4. API Public & In vận đơn (Tra cứu vận đơn & in tem công khai không chặn auth để iframe / popup in dễ dàng)
+		// 3. API Public & In vận đơn (Tra cứu vận đơn & in tem công khai không chặn auth để iframe / popup in dễ dàng)
 		publicGroup := api.Group("/public")
 		{
 			publicGroup.GET("/tracking/:tracking_number", handler.GetPublicTracking)

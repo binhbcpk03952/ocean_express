@@ -105,3 +105,58 @@ func RoleRequired(roles ...string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// CombinedAuth xác thực qua JWT Bearer Token (nội bộ/shop portal) hoặc X-API-Key (đối tác API)
+func CombinedAuth(shopRepo domain.ShopRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 1. Kiểm tra JWT Bearer Token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+			claims, err := utils.ValidateToken(tokenString)
+			if err == nil {
+				if SessionStore != nil {
+					ok, serr := SessionStore.Exists(c.Request.Context(), claims.ID)
+					if serr == nil && ok {
+						c.Set("user_id", claims.UserID)
+						c.Set("role", claims.Role)
+						c.Set("hub_id", claims.HubID)
+						c.Set("jti", claims.ID)
+						c.Next()
+						return
+					}
+				} else {
+					c.Set("user_id", claims.UserID)
+					c.Set("role", claims.Role)
+					c.Set("hub_id", claims.HubID)
+					c.Set("jti", claims.ID)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		// 2. Kiểm tra X-API-Key
+		apiKey := c.GetHeader("X-API-Key")
+		if apiKey != "" && shopRepo != nil {
+			apiKey = strings.TrimSpace(apiKey)
+			shop, err := shopRepo.GetByAPIKey(c.Request.Context(), apiKey)
+			if err == nil && shop != nil {
+				c.Set("user_id", shop.ID)
+				c.Set("shop_id", shop.ID)
+				c.Set("role", domain.RoleShop)
+				c.Next()
+				return
+			}
+		}
+
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "UNAUTHORIZED",
+				"message": "Vui lòng cung cấp Bearer Token hoặc X-API-Key hợp lệ",
+			},
+		})
+		c.Abort()
+	}
+}
