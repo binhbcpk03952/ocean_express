@@ -7,6 +7,7 @@ import (
 	"ocean-express-api/internal/delivery/http/middleware"
 	"ocean-express-api/internal/domain"
 	"ocean-express-api/pkg/pdf"
+	"ocean-express-api/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -361,6 +362,7 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 		return
 	}
 
+	st := utils.GetStatusInfo(order.Status)
 	labelURL := fmt.Sprintf("https://api.oceanexpress.bcbdev.id.vn/api/v1/public/orders/%s/label", order.ID)
 	trackingURL := fmt.Sprintf("https://oceanexpress.bcbdev.id.vn/tracking?code=%s", order.TrackingNumber)
 
@@ -370,11 +372,16 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 		"success":         true,
 		"message":         "Lấy thông tin in vận đơn thành công",
 		"data": gin.H{
-			"order_id":        order.ID,
-			"tracking_number": order.TrackingNumber,
-			"label_url":       labelURL,
-			"pdf_url":         labelURL,
-			"tracking_url":    trackingURL,
+			"order_id":           order.ID,
+			"tracking_number":    order.TrackingNumber,
+			"status":             order.Status,
+			"status_name":        st.Name,
+			"status_label":       st.Label,
+			"status_description": st.Description,
+			"status_badge":       st,
+			"label_url":          labelURL,
+			"pdf_url":            labelURL,
+			"tracking_url":       trackingURL,
 		},
 		"label_url":       labelURL,
 		"pdf_url":         labelURL,
@@ -535,10 +542,16 @@ func (h *OrderHandler) GetPublicTracking(c *gin.Context) {
 	}
 
 	// Filter and format data for public tracking
+	st := utils.GetStatusInfo(order.Status)
 	publicData := gin.H{
 		"id":                      order.ID,
 		"tracking_number":         order.TrackingNumber,
 		"status":                  order.Status,
+		"status_name":             st.Name,
+		"status_label":            st.Label,
+		"status_description":      st.Description,
+		"status_display":          st.Name,
+		"status_badge":            st,
 		"receiver_name":           order.ReceiverName,
 		"receiver_phone":          order.ReceiverPhone,
 		"weight":                  order.Weight,

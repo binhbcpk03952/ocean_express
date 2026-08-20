@@ -19,18 +19,19 @@ export const STATUS_ORDER = [
 ];
 
 export const STATUS_MAP = {
-  ready_to_pick:    { label: 'Chờ lấy',          fg: 'var(--st-ready-fg)',      bg: 'var(--st-ready-bg)' },
-  picked_up:        { label: 'Đã lấy',           fg: 'var(--st-picked-fg)',     bg: 'var(--st-picked-bg)' },
-  hub_inbound:      { label: 'Nhập kho',         fg: 'var(--st-inbound-fg)',    bg: 'var(--st-inbound-bg)' },
-  in_transit:       { label: 'Luân chuyển',      fg: 'var(--st-transit-fg)',    bg: 'var(--st-transit-bg)' },
-  hub_outbound:     { label: 'Xuất kho',         fg: 'var(--st-outbound-fg)',   bg: 'var(--st-outbound-bg)' },
-  delivering:       { label: 'Đang giao',        fg: 'var(--st-delivering-fg)', bg: 'var(--st-delivering-bg)' },
-  delivery_failed:  { label: 'Giao thất bại',    fg: '#ef4444',                 bg: '#fee2e2' },
-  return_requested: { label: 'Yêu cầu chuyển hoàn', fg: '#f97316',              bg: '#ffedd5' },
-  returning:        { label: 'Đang hoàn về Hub', fg: 'var(--st-transit-fg)',    bg: 'var(--st-transit-bg)' },
-  return_hub:       { label: 'Tại kho hàng hoàn', fg: 'var(--st-inbound-fg)',   bg: 'var(--st-inbound-bg)' },
-  delivered:        { label: 'Thành công',       fg: 'var(--st-delivered-fg)',  bg: 'var(--st-delivered-bg)' },
-  returned:         { label: 'Đã trả hàng cho Shop', fg: 'var(--st-returned-fg)', bg: 'var(--st-returned-bg)' },
+  ready_to_pick:    { label: 'Chờ lấy hàng',          fg: 'var(--st-ready-fg)',      bg: 'var(--st-ready-bg)' },
+  picked_up:        { label: 'Đã lấy hàng',           fg: 'var(--st-picked-fg)',     bg: 'var(--st-picked-bg)' },
+  hub_inbound:      { label: 'Đã nhập kho',           fg: 'var(--st-inbound-fg)',    bg: 'var(--st-inbound-bg)' },
+  in_transit:       { label: 'Đang trung chuyển',      fg: 'var(--st-transit-fg)',    bg: 'var(--st-transit-bg)' },
+  hub_outbound:     { label: 'Đã xuất kho giao',       fg: 'var(--st-outbound-fg)',   bg: 'var(--st-outbound-bg)' },
+  delivering:       { label: 'Đang giao hàng',        fg: 'var(--st-delivering-fg)', bg: 'var(--st-delivering-bg)' },
+  delivery_failed:  { label: 'Giao không thành công',  fg: '#ef4444',                 bg: '#fee2e2' },
+  return_requested: { label: 'Yêu cầu chuyển hoàn',   fg: '#f97316',                 bg: '#ffedd5' },
+  returning:        { label: 'Đang chuyển hoàn',      fg: '#b45309',                 bg: '#fef3c7' },
+  return_hub:       { label: 'Đã nhập kho hoàn',      fg: 'var(--st-inbound-fg)',    bg: 'var(--st-inbound-bg)' },
+  delivered:        { label: 'Giao thành công',       fg: 'var(--st-delivered-fg)',  bg: 'var(--st-delivered-bg)' },
+  returned:         { label: 'Đã hoàn trả Shop',      fg: 'var(--st-returned-fg)',   bg: 'var(--st-returned-bg)' },
+  cancelled:        { label: 'Đã hủy đơn',            fg: '#dc2626',                 bg: '#fee2e2' },
 };
 
 const FALLBACK = { label: '', fg: 'var(--text-meta)', bg: 'var(--bg-subtle)' };

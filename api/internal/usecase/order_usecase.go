@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"ocean-express-api/internal/domain"
 	"ocean-express-api/pkg/geocoding"
+	"ocean-express-api/pkg/utils"
 	"strings"
 	"time"
 
@@ -90,6 +91,9 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 		EstimatedDeliveryTime: &eta,
 		SlaDeadline:           &sla,
 		Status:                "ready_to_pick",
+		StatusName:            utils.GetStatusInfo("ready_to_pick").Name,
+		StatusLabel:           utils.GetStatusInfo("ready_to_pick").Label,
+		StatusDescription:     utils.GetStatusInfo("ready_to_pick").Description,
 	}
 
 	// 1. Geocoding Sender Address

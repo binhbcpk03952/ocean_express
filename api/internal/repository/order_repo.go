@@ -3,12 +3,33 @@ package repository
 import (
 	"context"
 	"ocean-express-api/internal/domain"
+	"ocean-express-api/pkg/utils"
 
 	"gorm.io/gorm"
 )
 
 type orderRepository struct {
 	db *gorm.DB
+}
+
+func populateOrder(order *domain.ShippingOrder) {
+	if order == nil {
+		return
+	}
+	st := utils.GetStatusInfo(order.Status)
+	order.StatusName = st.Name
+	order.StatusLabel = st.Label
+	order.StatusDescription = st.Description
+}
+
+func populateLog(log *domain.TrackingLog) {
+	if log == nil {
+		return
+	}
+	st := utils.GetStatusInfo(log.Status)
+	log.StatusName = st.Name
+	log.StatusLabel = st.Label
+	log.StatusDescription = st.Description
 }
 
 func NewOrderRepository(db *gorm.DB) domain.OrderRepository {
@@ -21,6 +42,7 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Shipp
 	if err != nil {
 		return nil, err
 	}
+	populateOrder(&order)
 	return &order, nil
 }
 
@@ -59,7 +81,13 @@ func (r *orderRepository) FindAll(ctx context.Context, role, employeeID, hubID s
 		Offset(pageParams.GetOffset()).
 		Limit(pageParams.GetLimit()).
 		Find(&orders).Error
-	return orders, total, err
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, o := range orders {
+		populateOrder(o)
+	}
+	return orders, total, nil
 }
 
 func (r *orderRepository) GetByTrackingNumber(ctx context.Context, trackingNumber string) (*domain.ShippingOrder, error) {
@@ -68,6 +96,7 @@ func (r *orderRepository) GetByTrackingNumber(ctx context.Context, trackingNumbe
 	if err != nil {
 		return nil, err
 	}
+	populateOrder(&order)
 	return &order, nil
 }
 
@@ -80,7 +109,13 @@ func (r *orderRepository) GetOrderLogs(ctx context.Context, orderID string) ([]*
 		Where("tracking_logs.order_id = ?", orderID).
 		Order("tracking_logs.created_at ASC").
 		Find(&logs).Error
-	return logs, err
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range logs {
+		populateLog(l)
+	}
+	return logs, nil
 }
 
 func (r *orderRepository) CreateOrderWithLog(ctx context.Context, order *domain.ShippingOrder, log *domain.TrackingLog) error {

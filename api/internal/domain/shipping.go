@@ -44,6 +44,9 @@ type ShippingOrder struct {
 	CodAmount             float64    `json:"cod_amount" gorm:"column:cod_amount;default:0"`
 	EstimatedDeliveryTime *time.Time `json:"estimated_delivery_time" gorm:"column:estimated_delivery_time"`
 	Status                string     `json:"status" gorm:"column:status;default:ready_to_pick"`
+	StatusName            string     `json:"status_name" gorm:"-"`
+	StatusLabel           string     `json:"status_label" gorm:"-"`
+	StatusDescription     string     `json:"status_description" gorm:"-"`
 	CurrentDriverID       *string    `json:"current_driver_id" gorm:"column:current_driver_id"`
 	CurrentHubID          *string    `json:"current_hub_id" gorm:"column:current_hub_id"`
 	PickupHubID           *string    `json:"pickup_hub_id" gorm:"column:pickup_hub_id"`
@@ -66,15 +69,18 @@ func (ShippingOrder) TableName() string {
 
 // TrackingLog lưu log hành trình
 type TrackingLog struct {
-	ID         string    `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
-	OrderID    string    `json:"order_id" gorm:"column:order_id"`
-	Status     string    `json:"status" gorm:"column:status"`
-	Note       string    `json:"note" gorm:"column:note"`
-	EmployeeID   *string   `json:"employee_id" gorm:"column:employee_id"`
-	EmployeeName *string   `json:"employee_name,omitempty" gorm:"-"`
-	Latitude     float64   `json:"latitude" gorm:"column:latitude"`
-	Longitude    float64   `json:"longitude" gorm:"column:longitude"`
-	CreatedAt    time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	ID                string    `json:"id" gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
+	OrderID           string    `json:"order_id" gorm:"column:order_id"`
+	Status            string    `json:"status" gorm:"column:status"`
+	StatusName        string    `json:"status_name" gorm:"-"`
+	StatusLabel       string    `json:"status_label" gorm:"-"`
+	StatusDescription string    `json:"status_description" gorm:"-"`
+	Note              string    `json:"note" gorm:"column:note"`
+	EmployeeID        *string   `json:"employee_id" gorm:"column:employee_id"`
+	EmployeeName      *string   `json:"employee_name,omitempty" gorm:"-"`
+	Latitude          float64   `json:"latitude" gorm:"column:latitude"`
+	Longitude         float64   `json:"longitude" gorm:"column:longitude"`
+	CreatedAt         time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 }
 
 func (TrackingLog) TableName() string {

@@ -75,10 +75,13 @@ type ShopAuthUseCase interface {
 
 // WebhookPayload cấu trúc dữ liệu gửi cho Shop
 type WebhookPayload struct {
-	TrackingNumber string    `json:"tracking_number"`
-	Status         string    `json:"status"`
-	Note           string    `json:"note"`
-	Timestamp      time.Time `json:"timestamp"`
+	TrackingNumber    string    `json:"tracking_number"`
+	Status            string    `json:"status"`
+	StatusName        string    `json:"status_name"`
+	StatusLabel       string    `json:"status_label"`
+	StatusDescription string    `json:"status_description"`
+	Note              string    `json:"note"`
+	Timestamp         time.Time `json:"timestamp"`
 }
 
 // WebhookService định nghĩa chức năng bắn webhook

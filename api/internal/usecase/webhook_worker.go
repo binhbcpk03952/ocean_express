@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"ocean-express-api/internal/domain"
+	"ocean-express-api/pkg/utils"
 	"time"
 )
 
@@ -47,11 +48,15 @@ func (w *webhookDispatcher) worker() {
 }
 
 func (w *webhookDispatcher) processJob(job domain.WebhookJob) {
+	st := utils.GetStatusInfo(job.Status)
 	payload := domain.WebhookPayload{
-		TrackingNumber: job.TrackingNumber,
-		Status:         job.Status,
-		Note:           job.Note,
-		Timestamp:      time.Now(),
+		TrackingNumber:    job.TrackingNumber,
+		Status:            job.Status,
+		StatusName:        st.Name,
+		StatusLabel:       st.Label,
+		StatusDescription: st.Description,
+		Note:              job.Note,
+		Timestamp:         time.Now(),
 	}
 
 	body, err := json.Marshal(payload)
