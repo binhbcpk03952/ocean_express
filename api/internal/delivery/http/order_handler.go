@@ -1,8 +1,11 @@
 package http
 
 import (
+	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"ocean-express-api/internal/delivery/http/middleware"
 	"ocean-express-api/internal/domain"
@@ -285,10 +288,26 @@ type BatchLabelsRequest struct {
 
 func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
+	if id == "" || id == "label" || id == "pdf" {
 		id = c.Param("tracking_number")
 	}
+	if id == "" {
+		id = c.Query("tracking_number")
+	}
+	if id == "" {
+		id = c.Query("order_code")
+	}
+	if id == "" {
+		id = c.Query("order_id")
+	}
+	if id == "" {
+		id = c.Query("id")
+	}
+
 	order, _, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), id)
+	if err != nil || order == nil {
+		order, _, err = h.orderUseCase.GetOrderDetailsByTrackingNumber(c.Request.Context(), id)
+	}
 	if err != nil || order == nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Không tìm thấy vận đơn"})
 		return
@@ -321,10 +340,19 @@ func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 
 func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" || id == "print-label" {
+	if id == "print-label" {
+		id = ""
+	}
+	if id == "" {
+		id = c.Param("tracking_number")
+	}
+	if id == "" {
 		id = c.Query("order_id")
 		if id == "" {
 			id = c.Query("tracking_number")
+		}
+		if id == "" {
+			id = c.Query("order_code")
 		}
 		if id == "" {
 			id = c.Query("code")
@@ -334,27 +362,32 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 		}
 	}
 	
-	if id == "" || id == "print-label" {
-		var req struct {
-			ID             string `json:"id" form:"id"`
-			OrderID        string `json:"order_id" form:"order_id"`
-			TrackingNumber string `json:"tracking_number" form:"tracking_number"`
-			Code           string `json:"code" form:"code"`
-		}
-		if err := c.ShouldBind(&req); err == nil {
-			if req.ID != "" {
-				id = req.ID
-			} else if req.OrderID != "" {
-				id = req.OrderID
-			} else if req.TrackingNumber != "" {
-				id = req.TrackingNumber
-			} else if req.Code != "" {
-				id = req.Code
+	if id == "" {
+		if bodyBytes, err := io.ReadAll(c.Request.Body); err == nil && len(bodyBytes) > 0 {
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			var rawMap map[string]interface{}
+			if err := json.Unmarshal(bodyBytes, &rawMap); err == nil {
+				for _, k := range []string{"tracking_number", "order_code", "order_id", "id", "code"} {
+					if val, ok := rawMap[k]; ok {
+						if strVal, ok := val.(string); ok && strVal != "" {
+							id = strVal
+							break
+						}
+					}
+				}
+				// Handle array of order_codes (e.g. GHN format: {"order_codes": ["OE-..."]})
+				if id == "" {
+					if codes, ok := rawMap["order_codes"].([]interface{}); ok && len(codes) > 0 {
+						if firstCode, ok := codes[0].(string); ok {
+							id = firstCode
+						}
+					}
+				}
 			}
 		}
 	}
 
-	if id == "" || id == "print-label" {
+	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "status": "error", "success": false, "message": "Thiếu mã đơn hàng hoặc mã vận đơn", "error": "Thiếu mã đơn hàng hoặc mã vận đơn"})
 		return
 	}
@@ -369,7 +402,7 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 	}
 
 	st := utils.GetStatusInfo(order.Status)
-	labelURL := fmt.Sprintf("https://api.oceanexpress.bcbdev.id.vn/api/v1/public/orders/%s/label", order.ID)
+	labelURL := fmt.Sprintf("https://api.oceanexpress.bcbdev.id.vn/api/v1/public/orders/%s/label", order.TrackingNumber)
 	trackingURL := fmt.Sprintf("https://oceanexpress.bcbdev.id.vn/tracking?code=%s", order.TrackingNumber)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -377,9 +410,14 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 		"status":          "success",
 		"success":         true,
 		"message":         "Lấy thông tin in vận đơn thành công",
+		"label_url":       labelURL,
+		"pdf_url":         labelURL,
+		"tracking_url":    trackingURL,
 		"data": gin.H{
 			"order_id":           order.ID,
 			"tracking_number":    order.TrackingNumber,
+			"token":              "oe_" + order.TrackingNumber,
+			"print_url":          labelURL,
 			"status":             order.Status,
 			"status_name":        st.Name,
 			"status_label":       st.Label,
@@ -389,9 +427,6 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 			"pdf_url":            labelURL,
 			"tracking_url":       trackingURL,
 		},
-		"label_url":       labelURL,
-		"pdf_url":         labelURL,
-		"tracking_url":    trackingURL,
 	})
 }
 
