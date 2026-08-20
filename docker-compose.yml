@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: "${DB_PASS:-rootpassword}"
       POSTGRES_DB: "${DB_NAME:-ocean_express_db}"
     ports:
-      - "5435:5432"
+      - "5434:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -39,7 +39,7 @@ services:
       dockerfile: Dockerfile
     container_name: ocean_express_api
     ports:
-      - "8081:8080"
+      - "8080:8080"
     environment:
       DB_HOST: "${DB_HOST:-db}"
       DB_PORT: "${DB_PORT:-5432}"
@@ -49,7 +49,7 @@ services:
       REDIS_HOST: "${REDIS_HOST:-redis}"
       REDIS_PORT: "${REDIS_PORT:-6379}"
       JWT_SECRET: "${JWT_SECRET:-oe_dev_change_this_to_a_long_random_secret_in_production}"
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:5175}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:5175,https://oceanexpress.bcbdev.id.vn,https://api.oceanexpress.bcbdev.id.vn}"
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-}"
@@ -71,7 +71,7 @@ services:
       dockerfile: Dockerfile
     container_name: ocean_express_admin
     ports:
-      - "3001:80"
+      - "3000:80"
     deploy:
       resources:
         limits:
