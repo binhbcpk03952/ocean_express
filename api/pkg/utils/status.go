@@ -129,6 +129,43 @@ var statusMap = map[string]StatusInfo{
 		BadgeBg:     "#fee2e2",
 		BadgeText:   "#dc2626",
 	},
+	// Aliases & Legacy states
+	"out_for_delivery": {
+		Code:        "delivering",
+		Name:        "Đang giao hàng",
+		Label:       "Đang giao hàng",
+		Description: "Tài xế đang trên đường giao hàng đến địa chỉ người nhận.",
+		BadgeColor:  "cyan",
+		BadgeBg:     "#cffafe",
+		BadgeText:   "#0891b2",
+	},
+	"awaiting_pickup": {
+		Code:        "ready_to_pick",
+		Name:        "Chờ lấy hàng",
+		Label:       "Chờ lấy hàng",
+		Description: "Đơn hàng đã được tạo thành công trên hệ thống, đang chờ tài xế tiếp nhận và đến lấy hàng.",
+		BadgeColor:  "amber",
+		BadgeBg:     "#fef3c7",
+		BadgeText:   "#d97706",
+	},
+	"picking_up": {
+		Code:        "ready_to_pick",
+		Name:        "Đang đi lấy hàng",
+		Label:       "Đang lấy",
+		Description: "Tài xế đang trên đường đến điểm gửi để tiếp nhận kiện hàng.",
+		BadgeColor:  "amber",
+		BadgeBg:     "#fef3c7",
+		BadgeText:   "#d97706",
+	},
+	"sorting": {
+		Code:        "hub_inbound",
+		Name:        "Đang phân loại tại bưu cục",
+		Label:       "Phân loại",
+		Description: "Kiện hàng đang được xử lý và phân luồng tại bưu cục trung chuyển.",
+		BadgeColor:  "indigo",
+		BadgeBg:     "#e0e7ff",
+		BadgeText:   "#4338ca",
+	},
 }
 
 // GetStatusInfo trả về thông tin chi tiết tên tiếng Việt, mô tả và màu sắc của trạng thái
