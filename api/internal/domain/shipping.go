@@ -121,4 +121,5 @@ type OrderUseCase interface {
 	GetOrderDetailsByTrackingNumber(ctx context.Context, trackingNumber string) (*ShippingOrder, []*TrackingLog, error)
 	SubmitCOD(ctx context.Context, driverID string) (float64, error)
 	AssignOrder(ctx context.Context, orderID, shipperID, assignerID, role string) error
+	BuildFullAddress(ctx context.Context, addressDetail string, locationID *string) string
 }

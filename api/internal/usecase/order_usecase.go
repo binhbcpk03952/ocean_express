@@ -71,13 +71,18 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 	sla := time.Now().Add(48 * time.Hour)
 	orderID := uuid.New().String()
 
+	senderFullAddr := u.BuildFullAddress(ctx, shop.AddressDetail, shop.LocationID)
+	if senderFullAddr == "" {
+		senderFullAddr = shop.AddressDetail
+	}
+
 	order := &domain.ShippingOrder{
 		ID:                    orderID,
 		TrackingNumber:        trackingNumber,
 		ShopID:                shop.ID,
 		SenderPhone:           shop.Phone,
 		SenderLocationID:      shop.LocationID,
-		SenderAddressDetail:   shop.AddressDetail,
+		SenderAddressDetail:   senderFullAddr,
 		ReceiverName:          receiverName,
 		ReceiverPhone:         receiverPhone,
 		ReceiverLocationID:    &receiverLocID,
@@ -104,7 +109,7 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 			order.PickupHubID = &hub.ID
 		}
 	} else {
-		senderGeoAddr := u.buildFullAddress(ctx, shop.AddressDetail, shop.LocationID)
+		senderGeoAddr := senderFullAddr
 		if senderGeoAddr != "" {
 			if senderCoords, err := u.geocoder.GetCoordinates(senderGeoAddr); err == nil {
 				order.SenderLatitude = &senderCoords.Latitude
@@ -137,7 +142,7 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 		if receiverLocID != "" {
 			receiverLocIDPtr = &receiverLocID
 		}
-		receiverGeoAddr := u.buildFullAddress(ctx, receiverAddress, receiverLocIDPtr)
+		receiverGeoAddr := u.BuildFullAddress(ctx, receiverAddress, receiverLocIDPtr)
 		if receiverGeoAddr != "" {
 			if receiverCoords, err := u.geocoder.GetCoordinates(receiverGeoAddr); err == nil {
 				order.ReceiverLatitude = &receiverCoords.Latitude
@@ -465,9 +470,9 @@ func (u *orderUseCase) AssignOrder(ctx context.Context, orderID, shipperID, assi
 	return nil
 }
 
-// buildFullAddress ghép địa chỉ chi tiết với tên đơn vị hành chính (xã/huyện/tỉnh) để tăng độ chính xác geocoding.
-// Ví dụ: "Hà Huy Tập" + locationID của Xã tại Đắk Lắk → "Hà Huy Tập, Buôn Ma Thuột, Đắk Lắk"
-func (u *orderUseCase) buildFullAddress(ctx context.Context, addressDetail string, locationID *string) string {
+// BuildFullAddress ghép địa chỉ chi tiết với tên đơn vị hành chính (xã/huyện/tỉnh).
+// Ví dụ: "300/6 Hà Huy Tập" + locationID của Phường Tân An tại Đắk Lắk → "300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk"
+func (u *orderUseCase) BuildFullAddress(ctx context.Context, addressDetail string, locationID *string) string {
 	if addressDetail == "" && locationID == nil {
 		return ""
 	}

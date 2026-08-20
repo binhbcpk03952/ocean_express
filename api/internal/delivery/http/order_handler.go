@@ -328,6 +328,27 @@ func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 		shop, _ = h.shopRepo.GetByID(c.Request.Context(), order.ShopID)
 	}
 
+	// Đảm bảo địa chỉ người gửi đầy đủ (Phường/Xã, Quận/Huyện, Tỉnh/Thành phố)
+	if shop != nil {
+		if order.SenderPhone == nil || *order.SenderPhone == "" {
+			order.SenderPhone = shop.Phone
+		}
+		if !strings.Contains(order.SenderAddressDetail, ",") {
+			locID := order.SenderLocationID
+			if locID == nil {
+				locID = shop.LocationID
+			}
+			addrDetail := order.SenderAddressDetail
+			if addrDetail == "" {
+				addrDetail = shop.AddressDetail
+			}
+			fullAddr := h.orderUseCase.BuildFullAddress(c.Request.Context(), addrDetail, locID)
+			if fullAddr != "" {
+				order.SenderAddressDetail = fullAddr
+			}
+		}
+	}
+
 	pdfBytes, err := pdf.GenerateOrderLabelPDF(order, shop)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Lỗi tạo file PDF: " + err.Error()})
@@ -399,11 +420,8 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 					id = bodyStr[idx:endIdx]
 				}
 			}
-			fmt.Printf("[DEBUG PrintLabelJSON] body=%s -> id=%s\n", string(bodyBytes), id)
 		}
 	}
-
-	fmt.Printf("[DEBUG PrintLabelJSON] Final id='%s'\n", id)
 
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "status": "error", "success": false, "message": "Thiếu mã đơn hàng hoặc mã vận đơn", "error": "Thiếu mã đơn hàng hoặc mã vận đơn"})
@@ -469,7 +487,7 @@ func (h *OrderHandler) GetBatchOrderLabels(c *gin.Context) {
 					continue // bỏ qua đơn không thuộc quyền sở hữu của shop
 				}
 			}
-			orders = append(orders, order)
+
 			if order.ShopID != "" {
 				if _, exists := shopMap[order.ShopID]; !exists {
 					shop, _ := h.shopRepo.GetByID(c.Request.Context(), order.ShopID)
@@ -478,6 +496,29 @@ func (h *OrderHandler) GetBatchOrderLabels(c *gin.Context) {
 					}
 				}
 			}
+
+			shop := shopMap[order.ShopID]
+			if shop != nil {
+				if order.SenderPhone == nil || *order.SenderPhone == "" {
+					order.SenderPhone = shop.Phone
+				}
+				if !strings.Contains(order.SenderAddressDetail, ",") {
+					locID := order.SenderLocationID
+					if locID == nil {
+						locID = shop.LocationID
+					}
+					addrDetail := order.SenderAddressDetail
+					if addrDetail == "" {
+						addrDetail = shop.AddressDetail
+					}
+					fullAddr := h.orderUseCase.BuildFullAddress(c.Request.Context(), addrDetail, locID)
+					if fullAddr != "" {
+						order.SenderAddressDetail = fullAddr
+					}
+				}
+			}
+
+			orders = append(orders, order)
 		}
 	}
 

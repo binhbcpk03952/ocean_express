@@ -162,9 +162,15 @@ func drawOrderLabel(pdf *gopdf.GoPdf, order *domain.ShippingOrder, shop *domain.
 	}
 	if order.SenderPhone != nil && *order.SenderPhone != "" {
 		senderStr += " - " + *order.SenderPhone
+	} else if shop != nil && shop.Phone != nil && *shop.Phone != "" {
+		senderStr += " - " + *shop.Phone
 	}
-	l.paragraph(fontBold, 16, senderStr, 1)
-	l.paragraph(fontRegular, 14, strings.TrimSpace(order.SenderAddressDetail), 1)
+	l.paragraph(fontBold, 16, senderStr, 2)
+	senderAddr := strings.TrimSpace(order.SenderAddressDetail)
+	if senderAddr == "" && shop != nil {
+		senderAddr = strings.TrimSpace(shop.AddressDetail)
+	}
+	l.paragraph(fontRegular, 14, senderAddr, 3)
 
 	l.divider(6)
 
