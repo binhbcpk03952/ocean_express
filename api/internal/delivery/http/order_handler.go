@@ -11,6 +11,7 @@ import (
 	"ocean-express-api/internal/domain"
 	"ocean-express-api/pkg/pdf"
 	"ocean-express-api/pkg/utils"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -367,7 +368,7 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			var rawMap map[string]interface{}
 			if err := json.Unmarshal(bodyBytes, &rawMap); err == nil {
-				for _, k := range []string{"tracking_number", "order_code", "order_id", "id", "code"} {
+				for _, k := range []string{"tracking_number", "trackingNumber", "order_code", "orderCode", "order_id", "orderId", "id", "code"} {
 					if val, ok := rawMap[k]; ok {
 						if strVal, ok := val.(string); ok && strVal != "" {
 							id = strVal
@@ -377,15 +378,32 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 				}
 				// Handle array of order_codes (e.g. GHN format: {"order_codes": ["OE-..."]})
 				if id == "" {
-					if codes, ok := rawMap["order_codes"].([]interface{}); ok && len(codes) > 0 {
-						if firstCode, ok := codes[0].(string); ok {
-							id = firstCode
+					for _, arrayKey := range []string{"order_codes", "orderCodes", "orders", "codes", "ids"} {
+						if codes, ok := rawMap[arrayKey].([]interface{}); ok && len(codes) > 0 {
+							if firstCode, ok := codes[0].(string); ok && firstCode != "" {
+								id = firstCode
+								break
+							}
 						}
 					}
 				}
 			}
+			// If still empty, regex match OE-... from raw body
+			if id == "" {
+				bodyStr := string(bodyBytes)
+				if idx := strings.Index(bodyStr, "OE-"); idx != -1 {
+					endIdx := idx + 3
+					for endIdx < len(bodyStr) && (bodyStr[endIdx] >= 'A' && bodyStr[endIdx] <= 'Z' || bodyStr[endIdx] >= 'a' && bodyStr[endIdx] <= 'z' || bodyStr[endIdx] >= '0' && bodyStr[endIdx] <= '9' || bodyStr[endIdx] == '-') {
+						endIdx++
+					}
+					id = bodyStr[idx:endIdx]
+				}
+			}
+			fmt.Printf("[DEBUG PrintLabelJSON] body=%s -> id=%s\n", string(bodyBytes), id)
 		}
 	}
+
+	fmt.Printf("[DEBUG PrintLabelJSON] Final id='%s'\n", id)
 
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "status": "error", "success": false, "message": "Thiếu mã đơn hàng hoặc mã vận đơn", "error": "Thiếu mã đơn hàng hoặc mã vận đơn"})
