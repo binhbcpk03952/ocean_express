@@ -321,28 +321,44 @@ func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 
 func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
+	if id == "" || id == "print-label" {
 		id = c.Query("order_id")
+		if id == "" {
+			id = c.Query("tracking_number")
+		}
+		if id == "" {
+			id = c.Query("code")
+		}
+		if id == "" {
+			id = c.Query("id")
+		}
 	}
-	if id == "" {
-		id = c.Query("tracking_number")
-	}
-	if id == "" {
+	
+	if id == "" || id == "print-label" {
 		var req struct {
-			OrderID        string `json:"order_id"`
-			TrackingNumber string `json:"tracking_number"`
+			ID             string `json:"id" form:"id"`
+			OrderID        string `json:"order_id" form:"order_id"`
+			TrackingNumber string `json:"tracking_number" form:"tracking_number"`
+			Code           string `json:"code" form:"code"`
 		}
-		_ = c.ShouldBindJSON(&req)
-		if req.OrderID != "" {
-			id = req.OrderID
-		} else if req.TrackingNumber != "" {
-			id = req.TrackingNumber
+		if err := c.ShouldBind(&req); err == nil {
+			if req.ID != "" {
+				id = req.ID
+			} else if req.OrderID != "" {
+				id = req.OrderID
+			} else if req.TrackingNumber != "" {
+				id = req.TrackingNumber
+			} else if req.Code != "" {
+				id = req.Code
+			}
 		}
 	}
-	if id == "" {
+
+	if id == "" || id == "print-label" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "status": "error", "success": false, "message": "Thiếu mã đơn hàng hoặc mã vận đơn", "error": "Thiếu mã đơn hàng hoặc mã vận đơn"})
 		return
 	}
+
 	order, _, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), id)
 	if err != nil || order == nil {
 		order, _, err = h.orderUseCase.GetOrderDetailsByTrackingNumber(c.Request.Context(), id)
