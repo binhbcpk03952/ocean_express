@@ -345,6 +345,9 @@ func (h *OrderHandler) PrintLabelJSON(c *gin.Context) {
 	}
 	order, _, err := h.orderUseCase.GetOrderDetails(c.Request.Context(), id)
 	if err != nil || order == nil {
+		order, _, err = h.orderUseCase.GetOrderDetailsByTrackingNumber(c.Request.Context(), id)
+	}
+	if err != nil || order == nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "status": "error", "success": false, "message": "Không tìm thấy vận đơn", "error": "Không tìm thấy vận đơn"})
 		return
 	}
