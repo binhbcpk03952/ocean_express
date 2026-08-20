@@ -402,18 +402,25 @@ func (u *orderUseCase) GetOrders(ctx context.Context, role, employeeID, hubID st
 }
 
 func (u *orderUseCase) GetOrderDetails(ctx context.Context, id string) (*domain.ShippingOrder, []*domain.TrackingLog, error) {
-	order, err := u.orderRepo.GetByID(ctx, id)
-	if err != nil || order == nil {
-		// Fallback: nếu id truyền vào là tracking_number (dạng OE-...)
-		var errTracking error
-		order, errTracking = u.orderRepo.GetByTrackingNumber(ctx, id)
-		if errTracking != nil || order == nil {
-			if err != nil {
-				return nil, nil, err
-			}
-			return nil, nil, errTracking
+	var order *domain.ShippingOrder
+	var err error
+
+	if strings.HasPrefix(id, "OE-") {
+		order, err = u.orderRepo.GetByTrackingNumber(ctx, id)
+	} else {
+		order, err = u.orderRepo.GetByID(ctx, id)
+		if (err != nil || order == nil) && strings.Contains(id, "OE-") {
+			order, err = u.orderRepo.GetByTrackingNumber(ctx, id)
 		}
 	}
+
+	if err != nil || order == nil {
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, nil, fmt.Errorf("không tìm thấy vận đơn")
+	}
+
 	logs, err := u.orderRepo.GetOrderLogs(ctx, order.ID)
 	if err != nil {
 		return nil, nil, err
