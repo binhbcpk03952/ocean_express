@@ -217,14 +217,24 @@
     <!-- Modal Phân công Shipper -->
     <BaseModal v-model="showAssignModal" :title="`Phân công Shipper cho ${selectedOrder?.tracking_number || ''}`">
       <div class="space-y-4">
-        <div class="flex items-center gap-2 text-sm">
-          <span class="text-meta">Trạng thái:</span>
-          <StatusBadge v-if="selectedOrder" :status="selectedOrder.status" />
+        <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-meta">Trạng thái:</span>
+            <StatusBadge v-if="selectedOrder" :status="selectedOrder.status" />
+          </div>
+          <div v-if="selectedOrder?.receiver_name" class="text-xs text-meta">
+            Người nhận: <span class="font-medium text-strong">{{ selectedOrder.receiver_name }}</span>
+          </div>
         </div>
-        <div v-if="loadingShippers" class="text-sm text-meta">Đang tải danh sách Shipper...</div>
+        <div v-if="loadingShippers" class="text-sm text-meta py-4 text-center">Đang tải danh sách Shipper...</div>
+        <div v-else-if="shippers.length === 0" class="text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
+          Chưa có tài xế nào đang hoạt động trong hệ thống.
+        </div>
         <FormSelect v-else v-model="assignForm.shipper_id" label="Chọn Shipper">
           <option value="" disabled>-- Chọn Shipper --</option>
-          <option v-for="s in shippers" :key="s.id" :value="s.id">{{ s.full_name }} ({{ s.phone }})</option>
+          <option v-for="s in shippers" :key="s.id" :value="s.id">
+            {{ s.name || s.full_name }} — {{ s.phone }} ({{ formatShipperRole(s.role) }}){{ s.hub_name ? ` • ${s.hub_name}` : '' }}
+          </option>
         </FormSelect>
       </div>
       <template #footer>
@@ -282,14 +292,38 @@ const showAssignModal = ref(false);
 const isAssigning = ref(false);
 const assignForm = ref({ shipper_id: '' });
 const shippers = ref([]);
+const hubs = ref([]);
 const loadingShippers = ref(false);
+
+const formatShipperRole = (role) => {
+  const map = {
+    first_mile_driver: 'Tài xế lấy hàng',
+    last_mile_driver: 'Tài xế giao hàng',
+    transit_driver: 'Tài xế trung chuyển',
+  };
+  return map[role] || role;
+};
 
 const fetchShippers = async () => {
   loadingShippers.value = true;
   try {
-    const res = await api.get('/employees');
-    if (res.success) {
-      shippers.value = (res.data || []).filter(e => e.role === 'first_mile_driver' || e.role === 'last_mile_driver');
+    const [empRes, hubRes] = await Promise.all([
+      api.get('/employees', { params: { limit: 100 } }),
+      hubs.value.length === 0 ? api.get('/hubs') : Promise.resolve({ success: true, data: hubs.value }),
+    ]);
+
+    if (hubRes.success && hubRes.data) {
+      hubs.value = hubRes.data;
+    }
+
+    if (empRes.success) {
+      const hubMap = new Map((hubs.value || []).map(h => [h.id, h.name]));
+      shippers.value = (empRes.data || [])
+        .filter(e => ['first_mile_driver', 'last_mile_driver', 'transit_driver'].includes(e.role) && e.is_active !== false)
+        .map(e => ({
+          ...e,
+          hub_name: e.hub_id ? hubMap.get(e.hub_id) || '' : '',
+        }));
     }
   } catch (error) {
     console.error('Không thể tải shipper', error);
