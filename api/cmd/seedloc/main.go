@@ -164,7 +164,7 @@ func buildRows(data fileJSON) (rows []locationRow, provinceCount, wardCount int,
 }
 
 func connectDB() (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Ho_Chi_Minh",
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
 		getEnv("DB_HOST", "localhost"),
 		getEnv("DB_USER", "root"),
 		getEnv("DB_PASS", "rootpassword"),

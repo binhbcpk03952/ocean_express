@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -p 1 -ldflags="-s -w" -o main ./cmd/server
 
 FROM alpine:latest
 
-# tzdata cần cho DSN TimeZone=Asia/Ho_Chi_Minh (Postgres driver phân giải timezone lúc kết nối).
+# tzdata cần cho các tác vụ phân giải múi giờ trong container
 RUN apk add --no-cache tzdata
 
 WORKDIR /app

@@ -67,8 +67,8 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 	}
 
 	trackingNumber := fmt.Sprintf("OE-%d", time.Now().UnixNano()/1000)
-	eta := time.Now().AddDate(0, 0, 3)
-	sla := time.Now().Add(48 * time.Hour)
+	eta := time.Now().UTC().AddDate(0, 0, 3)
+	sla := time.Now().UTC().Add(48 * time.Hour)
 	orderID := uuid.New().String()
 
 	senderFullAddr := u.BuildFullAddress(ctx, shop.AddressDetail, shop.LocationID)
