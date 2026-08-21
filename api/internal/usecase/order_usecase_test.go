@@ -31,6 +31,9 @@ func (m *MockOrderRepo) GetByTrackingNumber(ctx context.Context, trackingNumber 
 func (m *MockOrderRepo) GetOrderLogs(ctx context.Context, orderID string) ([]*domain.TrackingLog, error) {
 	return nil, nil
 }
+func (m *MockOrderRepo) CountOrderLogs(ctx context.Context, orderID string) (int64, error) {
+	return 1, nil
+}
 func (m *MockOrderRepo) FindAll(ctx context.Context, role, employeeID, hubID string, pageParams domain.PaginationParams) ([]*domain.ShippingOrder, int64, error) {
 	return nil, 0, nil
 }

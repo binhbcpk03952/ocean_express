@@ -198,3 +198,39 @@ Vòng đời trạng thái tài khoản (`status`): `pending` → `approved` / `
 ## 15. Danh sách tài khoản theo trạng thái (Admin)
 - `GET /shops?status=pending` — lọc đối tác theo trạng thái duyệt (rỗng = tất cả).
 - `GET /employees?status=pending` — lọc nhân sự theo trạng thái duyệt. Vẫn hỗ trợ `?hub_id=` như cũ.
+
+---
+
+## 16. Webhook Đối tác (Partner Webhooks)
+
+Khi đơn hàng có thay đổi trạng thái trong vòng đời vận chuyển, Ocean Express sẽ chủ động bắn HTTP POST request tới `webhook_url` do Shop cấu hình.
+
+### Header HTTP:
+- `Content-Type`: `application/json`
+- `User-Agent`: `OceanExpress-Webhook/1.0`
+- `X-Event-ID`: `<uuid>` (Khóa Idempotency định danh duy nhất của sự kiện)
+- `X-Tracking-Number`: `<mã_vận_đơn>` (VD: `BCS12345`)
+- `X-Sequence-ID`: `<số_thứ_tự_bước>` (VD: `1`, `2`, `3`)
+
+### Webhook JSON Payload Schema:
+```json
+{
+  "event_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+  "tracking_number": "BCS12345",
+  "status": "ready_to_pick",
+  "status_name": "Chờ lấy hàng",
+  "status_label": "Chờ lấy",
+  "status_description": "Đơn hàng mới tạo, đang chờ phân công tài xế lấy hàng",
+  "note": "Đơn hàng được tạo bởi Shop",
+  "sequence_id": 1,
+  "timestamp": "2026-08-20T12:04:00Z",
+  "created_at": "2026-08-20T12:04:00Z",
+  "timestamp_epoch": 1787227440000
+}
+```
+
+### Quy tắc Ack & Retry:
+1. **Thành công (Ack)**: Khi máy chủ của Shop phản hồi mã **HTTP 2xx (200, 201, 204)** trong vòng **10 giây**, Ocean Express ghi nhận thành công và kết thúc luồng (không retry).
+2. **Thất bại & Thử lại (Retry)**: Khi máy chủ của Shop phản hồi mã lỗi **4xx / 5xx** hoặc bị **timeout / lỗi kết nối mạng quá 10s**, Ocean Express sẽ tự động retry tối đa **3 lần** kèm exponential backoff (2s, 4s).
+3. **Bảo đảm thứ tự (FIFO & Partitioning)**: Các webhook của cùng một `tracking_number` luôn được xử lý tuần tự theo đúng tiến trình thời gian thực. Shop có thể dựa vào `sequence_id` hoặc `timestamp_epoch` để loại trừ các bản ghi out-of-order nếu mạng phía đối tác có độ trễ.
+

@@ -118,6 +118,15 @@ func (r *orderRepository) GetOrderLogs(ctx context.Context, orderID string) ([]*
 	return logs, nil
 }
 
+func (r *orderRepository) CountOrderLogs(ctx context.Context, orderID string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Table("tracking_logs").
+		Where("order_id = ?", orderID).
+		Count(&count).Error
+	return count, err
+}
+
 func (r *orderRepository) CreateOrderWithLog(ctx context.Context, order *domain.ShippingOrder, log *domain.TrackingLog) error {
 	// Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

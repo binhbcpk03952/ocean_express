@@ -175,12 +175,19 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 
 	// Trigger webhook qua dispatcher
 	if u.webhookDispatcher != nil {
+		createdAt := order.CreatedAt
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
 		u.webhookDispatcher.Dispatch(domain.WebhookJob{
+			EventID:        logEntry.ID,
 			ShopID:         shop.ID,
 			WebhookURL:     shop.WebhookURL,
 			TrackingNumber: order.TrackingNumber,
 			Status:         order.Status,
 			Note:           logEntry.Note,
+			SequenceID:     1,
+			Timestamp:      createdAt,
 		})
 	}
 
@@ -366,12 +373,23 @@ func (u *orderUseCase) UpdateOrderStatus(ctx context.Context, orderID, status, n
 	shop, err := u.shopRepo.GetByID(ctx, order.ShopID)
 	if err == nil && shop != nil {
 		if u.webhookDispatcher != nil {
+			seqID, errCount := u.orderRepo.CountOrderLogs(ctx, order.ID)
+			if errCount != nil || seqID <= 0 {
+				seqID = 1
+			}
+			logTime := logEntry.CreatedAt
+			if logTime.IsZero() {
+				logTime = time.Now().UTC()
+			}
 			u.webhookDispatcher.Dispatch(domain.WebhookJob{
+				EventID:        logEntry.ID,
 				ShopID:         shop.ID,
 				WebhookURL:     shop.WebhookURL,
 				TrackingNumber: order.TrackingNumber,
 				Status:         order.Status,
 				Note:           note,
+				SequenceID:     seqID,
+				Timestamp:      logTime,
 			})
 		}
 		if u.notifUC != nil {

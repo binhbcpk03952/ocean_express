@@ -107,6 +107,7 @@ type OrderRepository interface {
 	GetByTrackingNumber(ctx context.Context, trackingNumber string) (*ShippingOrder, error)
 	FindAll(ctx context.Context, role, employeeID, hubID string, pageParams PaginationParams) ([]*ShippingOrder, int64, error)
 	GetOrderLogs(ctx context.Context, orderID string) ([]*TrackingLog, error)
+	CountOrderLogs(ctx context.Context, orderID string) (int64, error)
 	CreateOrderWithLog(ctx context.Context, order *ShippingOrder, log *TrackingLog) error
 	UpdateStatus(ctx context.Context, order *ShippingOrder, log *TrackingLog) error
 	SubmitCOD(ctx context.Context, driverID string) (float64, error)

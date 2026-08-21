@@ -3,6 +3,7 @@ package webhook
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"ocean-express-api/internal/domain"
@@ -16,7 +17,7 @@ type webhookService struct {
 func NewWebhookService() domain.WebhookService {
 	return &webhookService{
 		client: &http.Client{
-			Timeout: 5 * time.Second, // Timeout 5s để không treo goroutine
+			Timeout: 10 * time.Second, // Chuẩn hóa timeout 10s
 		},
 	}
 }
@@ -41,13 +42,15 @@ func (s *webhookService) SendOrderStatus(url string, payload domain.WebhookPaylo
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", "OceanExpress-Webhook/1.0")
 
 		resp, err := s.client.Do(req)
 		if err != nil {
 			log.Printf("[Webhook] Bắn tới %s lỗi: %v", url, err)
 			return
 		}
-		defer resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			log.Printf("[Webhook] Thành công: %s (Trạng thái: %s)", url, payload.Status)

@@ -73,15 +73,19 @@ type ShopAuthUseCase interface {
 	ResetPassword(ctx context.Context, identifier, otp, newPassword string) error
 }
 
-// WebhookPayload cấu trúc dữ liệu gửi cho Shop
+// WebhookPayload cấu trúc dữ liệu chuẩn gửi cho Shop qua Webhook
 type WebhookPayload struct {
-	TrackingNumber    string    `json:"tracking_number"`
-	Status            string    `json:"status"`
-	StatusName        string    `json:"status_name"`
-	StatusLabel       string    `json:"status_label"`
-	StatusDescription string    `json:"status_description"`
-	Note              string    `json:"note"`
-	Timestamp         time.Time `json:"timestamp"`
+	EventID           string `json:"event_id,omitempty"`           // UUID định danh duy nhất của sự kiện (Idempotency Key)
+	TrackingNumber    string `json:"tracking_number"`              // Mã vận đơn (VD: BCS12345)
+	Status            string `json:"status"`                       // Mã trạng thái kỹ thuật (VD: ready_to_pick, delivering)
+	StatusName        string `json:"status_name"`                  // Tên trạng thái (VD: Chờ lấy hàng, Đang giao hàng)
+	StatusLabel       string `json:"status_label"`                 // Nhãn hiển thị ngắn
+	StatusDescription string `json:"status_description"`           // Mô tả chi tiết trạng thái
+	Note              string `json:"note"`                         // Ghi chú cập nhật (nếu có)
+	SequenceID        int64  `json:"sequence_id"`                  // Số thứ tự bước hành trình tăng dần (1, 2, 3...)
+	Timestamp         string `json:"timestamp"`                    // Thời điểm phát sinh theo chuẩn ISO-8601 UTC (YYYY-MM-DDTHH:mm:ssZ)
+	CreatedAt         string `json:"created_at"`                   // Tương đương timestamp (đảm bảo tương thích các hệ thống)
+	TimestampEpoch    int64  `json:"timestamp_epoch"`              // Epoch timestamp tính theo milliseconds (số nguyên)
 }
 
 // WebhookService định nghĩa chức năng bắn webhook
