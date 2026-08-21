@@ -333,21 +333,26 @@ func (h *OrderHandler) GetOrderLabel(c *gin.Context) {
 		if order.SenderPhone == nil || *order.SenderPhone == "" {
 			order.SenderPhone = shop.Phone
 		}
+		locID := order.SenderLocationID
+		if locID == nil {
+			locID = shop.LocationID
+		}
+		addrDetail := order.SenderAddressDetail
+		if addrDetail == "" {
+			addrDetail = shop.AddressDetail
+		}
 		if !strings.Contains(order.SenderAddressDetail, ",") {
-			locID := order.SenderLocationID
-			if locID == nil {
-				locID = shop.LocationID
-			}
-			addrDetail := order.SenderAddressDetail
-			if addrDetail == "" {
-				addrDetail = shop.AddressDetail
-			}
 			fullAddr := h.orderUseCase.BuildFullAddress(c.Request.Context(), addrDetail, locID)
 			if fullAddr != "" {
 				order.SenderAddressDetail = fullAddr
 			}
+		} else {
+			order.SenderAddressDetail = utils.FixMojibake(order.SenderAddressDetail)
 		}
 	}
+	order.ReceiverName = utils.FixMojibake(order.ReceiverName)
+	order.ReceiverAddressDetail = utils.FixMojibake(order.ReceiverAddressDetail)
+	order.SenderAddressDetail = utils.FixMojibake(order.SenderAddressDetail)
 
 	pdfBytes, err := pdf.GenerateOrderLabelPDF(order, shop)
 	if err != nil {
@@ -502,21 +507,26 @@ func (h *OrderHandler) GetBatchOrderLabels(c *gin.Context) {
 				if order.SenderPhone == nil || *order.SenderPhone == "" {
 					order.SenderPhone = shop.Phone
 				}
+				locID := order.SenderLocationID
+				if locID == nil {
+					locID = shop.LocationID
+				}
+				addrDetail := order.SenderAddressDetail
+				if addrDetail == "" {
+					addrDetail = shop.AddressDetail
+				}
 				if !strings.Contains(order.SenderAddressDetail, ",") {
-					locID := order.SenderLocationID
-					if locID == nil {
-						locID = shop.LocationID
-					}
-					addrDetail := order.SenderAddressDetail
-					if addrDetail == "" {
-						addrDetail = shop.AddressDetail
-					}
 					fullAddr := h.orderUseCase.BuildFullAddress(c.Request.Context(), addrDetail, locID)
 					if fullAddr != "" {
 						order.SenderAddressDetail = fullAddr
 					}
+				} else {
+					order.SenderAddressDetail = utils.FixMojibake(order.SenderAddressDetail)
 				}
 			}
+			order.ReceiverName = utils.FixMojibake(order.ReceiverName)
+			order.ReceiverAddressDetail = utils.FixMojibake(order.ReceiverAddressDetail)
+			order.SenderAddressDetail = utils.FixMojibake(order.SenderAddressDetail)
 
 			orders = append(orders, order)
 		}

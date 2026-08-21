@@ -83,10 +83,10 @@ func (u *orderUseCase) CreateOrder(ctx context.Context, shopID, receiverName, re
 		SenderPhone:           shop.Phone,
 		SenderLocationID:      shop.LocationID,
 		SenderAddressDetail:   senderFullAddr,
-		ReceiverName:          receiverName,
+		ReceiverName:          utils.FixMojibake(strings.TrimSpace(receiverName)),
 		ReceiverPhone:         receiverPhone,
 		ReceiverLocationID:    &receiverLocID,
-		ReceiverAddressDetail: receiverAddress,
+		ReceiverAddressDetail: utils.FixMojibake(strings.TrimSpace(receiverAddress)),
 		Weight:                weight,
 		Length:                length,
 		Width:                 width,
@@ -498,6 +498,7 @@ func (u *orderUseCase) AssignOrder(ctx context.Context, orderID, shipperID, assi
 // BuildFullAddress ghép địa chỉ chi tiết với tên đơn vị hành chính (xã/huyện/tỉnh).
 // Ví dụ: "300/6 Hà Huy Tập" + locationID của Phường Tân An tại Đắk Lắk → "300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk"
 func (u *orderUseCase) BuildFullAddress(ctx context.Context, addressDetail string, locationID *string) string {
+	addressDetail = utils.FixMojibake(strings.TrimSpace(addressDetail))
 	if addressDetail == "" && locationID == nil {
 		return ""
 	}

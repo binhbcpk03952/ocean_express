@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"ocean-express-api/internal/domain"
+	"ocean-express-api/pkg/utils"
 
 	"github.com/signintech/gopdf"
 	"github.com/skip2/go-qrcode"
@@ -165,12 +166,12 @@ func drawOrderLabel(pdf *gopdf.GoPdf, order *domain.ShippingOrder, shop *domain.
 	} else if shop != nil && shop.Phone != nil && *shop.Phone != "" {
 		senderStr += " - " + *shop.Phone
 	}
-	l.paragraph(fontBold, 16, senderStr, 2)
+	l.paragraph(fontBold, 16, utils.FixMojibake(senderStr), 2)
 	senderAddr := strings.TrimSpace(order.SenderAddressDetail)
 	if senderAddr == "" && shop != nil {
 		senderAddr = strings.TrimSpace(shop.AddressDetail)
 	}
-	l.paragraph(fontRegular, 14, senderAddr, 3)
+	l.paragraph(fontRegular, 14, utils.FixMojibake(senderAddr), 3)
 
 	l.divider(6)
 
@@ -185,8 +186,8 @@ func drawOrderLabel(pdf *gopdf.GoPdf, order *domain.ShippingOrder, shop *domain.
 			receiver = phone
 		}
 	}
-	l.paragraph(fontBold, 16, receiver, 2)
-	l.paragraph(fontRegular, 14, strings.TrimSpace(order.ReceiverAddressDetail), 3)
+	l.paragraph(fontBold, 16, utils.FixMojibake(receiver), 2)
+	l.paragraph(fontRegular, 14, utils.FixMojibake(strings.TrimSpace(order.ReceiverAddressDetail)), 3)
 
 	l.divider(6)
 

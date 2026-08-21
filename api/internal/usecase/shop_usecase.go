@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"ocean-express-api/internal/domain"
 	"ocean-express-api/pkg/utils"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,6 +49,8 @@ func (u *shopUseCase) GetByID(ctx context.Context, id string) (*domain.Shop, err
 // CreateShop tạo đối tác mới và sinh API key. API key thô chỉ được trả về đúng
 // một lần tại đây (giá trị lưu trong struct bị ẩn khỏi JSON qua tag `json:"-"`).
 func (u *shopUseCase) CreateShop(ctx context.Context, name, phone, webhookURL string, locationID *string, addressDetail string, latitude, longitude *float64) (*domain.Shop, string, error) {
+	name = utils.FixMojibake(strings.TrimSpace(name))
+	addressDetail = utils.FixMojibake(strings.TrimSpace(addressDetail))
 	if name == "" || addressDetail == "" {
 		return nil, "", errors.New("tên và địa chỉ chi tiết không được để trống")
 	}
@@ -85,6 +88,8 @@ func (u *shopUseCase) CreateShop(ctx context.Context, name, phone, webhookURL st
 // RegisterShop: shop tự đăng ký bằng email + mật khẩu. Tài khoản được kích hoạt ngay lập tức
 // và tự động sinh sẵn API Key cho Shop để tích hợp nhanh chóng.
 func (u *shopUseCase) RegisterShop(ctx context.Context, name, phone, email, password string, locationID *string, addressDetail string, latitude, longitude *float64) (*domain.Shop, error) {
+	name = utils.FixMojibake(strings.TrimSpace(name))
+	addressDetail = utils.FixMojibake(strings.TrimSpace(addressDetail))
 	if name == "" || email == "" || password == "" || addressDetail == "" {
 		return nil, errors.New("tên, email, mật khẩu và địa chỉ không được để trống")
 	}
@@ -186,6 +191,8 @@ func (u *shopUseCase) UpdateShop(ctx context.Context, id, name, phone, webhookUR
 		return nil, errors.New("không tìm thấy đối tác")
 	}
 
+	name = utils.FixMojibake(strings.TrimSpace(name))
+	addressDetail = utils.FixMojibake(strings.TrimSpace(addressDetail))
 	if name == "" || addressDetail == "" {
 		return nil, errors.New("tên và địa chỉ chi tiết không được để trống")
 	}
